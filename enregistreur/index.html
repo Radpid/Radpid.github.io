@@ -43,6 +43,7 @@ button,.btn{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:mani
 .primary{background:var(--accent);color:var(--accent-fg)}
 .rec{background:var(--rec);color:var(--rec-fg)}
 .danger-btn{background:var(--rec);color:var(--rec-fg)}
+.wide{display:flex;width:100%;margin:4px 0 8px}
 .link{display:block;width:100%;min-height:56px;background:none;color:var(--muted);text-decoration:underline;font-size:17px;padding:8px}
 button:disabled{opacity:.45;cursor:default}
 .back{min-height:56px;min-width:56px;padding:6px 10px;border-radius:10px;background:var(--btn);font-size:17px;font-weight:600}
@@ -74,21 +75,24 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 .prog{display:flex;justify-content:space-between;color:var(--muted);font-size:17px;margin-top:8px}
 .progbar{height:6px;border-radius:3px;background:var(--meter-bg);overflow:hidden;margin:6px 0 4px}
 .progbar i{display:block;height:100%;width:0;background:var(--accent)}
-.sentence{font-size:32px;line-height:1.32;font-weight:600;min-height:34vh;margin:18px 0 10px;overflow-wrap:normal;word-break:normal;-webkit-hyphens:manual;hyphens:manual}
+.sentence{font-size:32px;line-height:1.32;font-weight:600;min-height:30vh;margin:18px 0 10px;overflow-wrap:normal;word-break:normal;-webkit-hyphens:manual;hyphens:manual}
 .toast{min-height:26px;color:var(--ok);font-weight:600;font-size:17px;margin:4px 0}
 .slot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .slot b{font-size:44px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
-.item .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.item .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .item .nm{font-size:20px;font-weight:700;word-break:break-all}
 .item .meta{color:var(--muted);font-size:15px;margin:2px 0 8px}
-.item audio{width:100%;margin:8px 0}
-.badge{font-size:14px;font-weight:650;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.item audio{display:block;width:100%;height:56px;min-height:56px;margin:8px 0}
+.badge{font-size:14px;font-weight:650;padding:4px 10px;border-radius:999px;text-align:center}
 .badge.sent{background:transparent;color:var(--ok);border:1px solid var(--ok)}
 .badge.unsent{background:var(--warn-bg);color:var(--warn-fg)}
 .chk{display:flex;gap:10px;align-items:center;min-height:48px;font-size:16px;color:var(--muted)}
 .chk input{width:24px;height:24px;flex:none}
 .saved{font-size:14px;color:var(--ok);min-height:20px;display:block}
+.saved.bad{color:var(--danger-fg);font-weight:650}
+.ver{color:var(--muted);font-size:13px;margin:4px 0 0}
+.kbd{font-size:15px;margin:4px 0}
 .dl{display:flex;width:100%;margin:8px 0;word-break:break-all}
 .dl.done{opacity:.6}
 .stack > *{margin:8px 0}
@@ -111,17 +115,13 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <p class="lead">Les enregistrements restent sur ce téléphone jusqu'à ce que vous les envoyiez.</p>
     <div id="recover" class="card warn" hidden>
       <p id="recover-text"></p>
-      <button class="big primary" id="recover-yes">Récupérer</button>
-      <button class="link" id="recover-no">Effacer cet enregistrement interrompu</button>
-      <div id="recover-confirm" class="card danger" hidden>
-        <p>Effacer définitivement cet enregistrement interrompu ?</p>
-        <div class="row2"><button class="mid danger-btn" id="recover-del">Oui, effacer</button><button class="mid" id="recover-keep">Non</button></div>
-      </div>
+      <button class="mid wide primary" id="recover-see">Voir mes enregistrements</button>
     </div>
     <button class="big primary" id="go-w1">Liste à lire (test W1)<small>phrases à lire, 2 blocs, 2 jours</small></button>
     <button class="big primary" id="go-ne">Jeu neuf : dictées libres<small>NE001, NE002… sans texte à lire</small></button>
     <button class="big" id="go-list">Mes enregistrements<small id="home-count">&nbsp;</small></button>
-    <p class="foot">Les fichiers sont gardés dans ce navigateur (pas dans Photos ni dans Fichiers). La page n'envoie rien d'elle-même : c'est vous qui envoyez, avec « Envoyer ». <span id="version"></span></p>
+    <p class="foot">Les fichiers sont gardés dans ce navigateur (pas dans Photos ni dans Fichiers). Ouvrez toujours la page de la même façon : onglet Safari OU icône de l'écran d'accueil, jamais les deux (leurs fichiers sont séparés), et jamais en navigation privée. La page n'envoie rien d'elle-même : c'est vous qui envoyez, avec « Envoyer ».</p>
+    <p class="ver" id="version"></p>
   </section>
 
   <!-- ============================================================== W1 : réglages -->
@@ -129,7 +129,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <h2>Liste à lire (test W1)</h2>
     <label class="field" for="w1-voice">Voix</label>
     <input type="text" id="w1-voice" value="moi" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-    <p class="hint">« moi », ou le prénom d'un ou une collègue.</p>
+    <p class="hint">« moi » si c'est vous qui lisez. Autre voix : collegue1, collegue2… (jamais de prénom).</p>
     <div class="field">Jour</div>
     <div class="seg" id="w1-day"><button type="button" data-v="1" aria-pressed="true">Jour 1</button><button type="button" data-v="2" aria-pressed="false">Jour 2</button></div>
     <div class="field">Bloc</div>
@@ -144,6 +144,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
       <li>Erreur de lecture : touchez « Erreur de lecture », puis relisez toute la phrase.</li>
     </ul>
     <div id="w1-error"></div>
+    <p id="w1-voicenote" class="banner warn" hidden></p>
     <button class="big rec" id="w1-start">Commencer</button>
   </section>
 
@@ -151,12 +152,13 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
   <section id="s-w1run" class="screen" hidden>
     <div class="recbar"><span class="dot"></span><span id="w1-time">00:00</span><div class="meter"><i id="w1-meter"></i></div></div>
     <div id="w1-pause" class="banner warn" hidden></div>
+    <div id="w1-live" class="banner warn" hidden></div>
     <div class="prog"><span id="w1-pos">Préparation du micro…</span><span id="w1-id"></span></div>
     <div class="progbar"><i id="w1-progbar"></i></div>
     <p id="w1-sentence" class="sentence" lang="de"></p>
     <p id="w1-toast" class="toast" aria-live="polite"></p>
     <button class="big primary" id="w1-next" disabled>Suivant</button>
-    <button class="big" id="w1-err" disabled>Erreur de lecture</button>
+    <button class="mid wide" id="w1-err" disabled>Erreur de lecture</button>
     <button class="link" id="w1-stop">Arrêter ici</button>
     <div id="w1-stopconfirm" class="card warn" hidden>
       <p>Arrêter maintenant ? L'enregistrement incomplet sera gardé.</p>
@@ -171,6 +173,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <div id="w1-done-warn"></div>
     <button class="big primary" id="w1-send">Envoyer maintenant</button>
     <div id="w1-send-out" class="stack"></div>
+    <button class="big primary" id="w1-redo" hidden>Refaire ce bloc</button>
     <button class="big" id="w1-again">Bloc suivant</button>
     <button class="big" id="w1-tolist">Mes enregistrements</button>
   </section>
@@ -183,7 +186,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
       <label class="field" for="ne-num">Numéro de la prochaine dictée</label>
       <div class="row2"><input type="number" id="ne-num" inputmode="numeric" min="1" max="999"><button class="mid primary" id="ne-numok">OK</button></div>
     </div>
-    <p class="hint" id="ne-hint">Le numéro suit le dernier utilisé sur ce téléphone. Si des dictées NE existent déjà ailleurs, changez-le.</p>
+    <p class="hint" id="ne-hint">Le numéro suit le dernier utilisé sur ce téléphone ; un numéro déjà utilisé (même supprimé) ne revient jamais. Si des dictées NE existent déjà ailleurs, changez-le.</p>
     <p id="ne-note" class="banner warn" hidden></p>
     <ul class="rules" id="ne-rules">
       <li>Dictez comme au travail, avec vos commandes habituelles. Rien à lire.</li>
@@ -194,6 +197,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <div id="ne-error"></div>
     <div id="ne-recbar" class="recbar" hidden><span class="dot"></span><span id="ne-time">00:00</span><div class="meter"><i id="ne-meter"></i></div></div>
     <div id="ne-pause" class="banner warn" hidden></div>
+    <div id="ne-live" class="banner warn" hidden></div>
     <p id="ne-warn" class="banner warn" hidden></p>
     <div id="ne-ready"><button class="big rec" id="ne-rec">Enregistrer</button></div>
     <div id="ne-recording" hidden><button class="big primary" id="ne-stop">Arrêter</button></div>
@@ -216,7 +220,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <p id="list-storage" class="hint"></p>
     <button class="big primary" id="list-sendall">Tout envoyer</button>
     <div id="list-out" class="stack"></div>
-    <p class="hint">Dans la fenêtre de partage, choisissez Google Drive, puis le dossier « RadGent enregistrements ». Safari peut effacer les données d'un site non ouvert pendant 7 jours : envoyez vite.</p>
+    <p class="hint">Le plus simple : dans la fenêtre de partage, choisissez l'app Claude (ou « Enregistrer dans Fichiers », puis joignez les fichiers dans la conversation Claude). Google Drive marche aussi. « Partagé » ne prouve pas que le fichier est arrivé : vérifiez. Safari peut effacer les données d'un site non ouvert pendant 7 jours : envoyez vite.</p>
     <div id="list-items"></div>
   </section>
 </main>
@@ -225,10 +229,12 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 <script>
 'use strict';
 (function () {
-const PAGE_VERSION = '2026-10-08.1';
+const PAGE_VERSION = '2026-10-08.2';
 const OUT_RATE = 16000;
+const REC_LOCK = 'radgent-enregistreur-en-cours';
 // Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
-const T = Object.assign({warnAt: 450, limitAt: 480, w1Limit: 1200, checkpointEvery: 4, tapGuardMs: 300, noWorklet: false},
+const T = Object.assign({warnAt: 450, limitAt: 480, stopEarly: 0.3, w1Limit: 1200, w1TailMs: 600, checkpointEvery: 4, tapGuardMs: 300,
+                         errGuardMs: 1000, silenceWin: 3, noWorklet: false, staleMs: 30000},
                         (window.__ENREG_TEST__ && typeof window.__ENREG_TEST__ === 'object') ? window.__ENREG_TEST__ : {});
 
 // ------------------------------------------------------------------------------------------------ petits outils
@@ -256,12 +262,13 @@ const prefs = {
   set(k, v) { try { localStorage.setItem('radrec.' + k, JSON.stringify(v)); } catch (e) { /* stockage refusé : sans conséquence */ } },
 };
 function cleanVoice(v) {
-  v = String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20);
+  v = String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20);
   return v || 'moi';
 }
 function deviceInfo() {
   const d = {user_agent: navigator.userAgent, platform: navigator.platform || null, language: navigator.language || null,
              screen: (screen.width + 'x' + screen.height + '@' + (window.devicePixelRatio || 1))};
+  try { d.standalone = !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); } catch (e) { /* facultatif */ }
   try { if (navigator.userAgentData) d.ua_data = {mobile: navigator.userAgentData.mobile, platform: navigator.userAgentData.platform,
                                                   brands: navigator.userAgentData.brands.map((b) => b.brand + ' ' + b.version)}; } catch (e) { /* facultatif */ }
   return d;
@@ -391,6 +398,7 @@ class Recorder {
     this.onLevel = onLevel || (() => {});
     this.blocks = []; this.pend = []; this.outFrames = 0; this.inFrames = 0;
     this.peak = 0; this.sumsq = 0; this.t0 = null; this.stopped = false; this.onStopped = null; this.onFirst = null; this.lostTrack = false;
+    this.maxFrames = 0; this.capped = false; this.win = []; this.onMute = null; this.onUnmute = null;
   }
   prime() { // à appeler pendant le toucher (iOS) : crée et réveille le contexte audio
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -435,7 +443,10 @@ class Recorder {
       this.node = sp;
     }
     this.src.connect(this.node); this.node.connect(this.sink);
-    this.track.addEventListener('ended', () => { this.lostTrack = true; if (this.onLost) this.onLost(); });
+    this.track.addEventListener('ended', () => { if (this.stopped) return; this.lostTrack = true; if (this.onLost) this.onLost(); });
+    // iOS : app en arrière-plan, appel, écran verrouillé => la piste passe « muted » (le micro ne donne plus rien).
+    this.track.addEventListener('mute', () => { if (!this.stopped && this.onMute) this.onMute(); });
+    this.track.addEventListener('unmute', () => { if (!this.stopped && this.onUnmute) this.onUnmute(); });
     const ok = await Promise.race([first.then(() => true), sleep(4000).then(() => false)]);
     if (!ok) throw codeErr('NoData');
   }
@@ -449,10 +460,18 @@ class Recorder {
     let pk = 0, ss = 0;
     for (let i = 0; i < f.length; i++) { const a = Math.abs(f[i]); if (a > pk) pk = a; ss += f[i] * f[i]; }
     if (pk > this.peak) this.peak = pk; this.sumsq += ss;
-    const out = toInt16(this.rs.process(f));
-    if (out.length) { this.pend.push(out); this.outFrames += out.length; }
+    // fenêtre récente (T.silenceWin secondes) pour l'alerte « aucun son » : pas le pic depuis le début
+    this.win.push([this.inFrames, pk]);
+    const keep = T.silenceWin * (this.rate || 48000);
+    while (this.win.length > 1 && this.inFrames - this.win[0][0] > keep) this.win.shift();
+    this.push(toInt16(this.rs.process(f)));
     this.onLevel(pk);
   }
+  push(out) { // plafond dur : jamais plus de maxFrames échantillons à 16 kHz dans le fichier
+    if (this.maxFrames && this.outFrames + out.length > this.maxFrames) { out = out.subarray(0, Math.max(0, this.maxFrames - this.outFrames)); this.capped = true; }
+    if (out.length) { this.pend.push(out); this.outFrames += out.length; }
+  }
+  recentPeak() { let m = 0; for (const w of this.win) if (w[1] > m) m = w[1]; return m; }
   now() { return (this.ctx && this.t0 !== null) ? Math.max(0, this.ctx.currentTime - this.t0) : 0; }
   elapsed() { return this.rate ? this.inFrames / this.rate : 0; }
   takeBlock() {
@@ -469,7 +488,7 @@ class Recorder {
     }
     this.clockSpan = this.now();
     this.abort();
-    const tail = toInt16(this.rs.flush()); if (tail.length) { this.pend.push(tail); this.outFrames += tail.length; }
+    this.push(toInt16(this.rs.flush()));
     this.takeBlock();
   }
   abort() {
@@ -554,6 +573,17 @@ const store = {
   },
   async chunksGet(session) { if (!this.ok) return []; return await req(this.t(['chunks'], 'readonly').objectStore('chunks').getAll(chunkRange(session))); },
   async partialGet() { if (!this.ok) return null; return (await req(this.t(['meta'], 'readonly').objectStore('meta').get('partial'))) || null; },
+  async metaUsed() {
+    if (!this.ok) return [];
+    const v = await req(this.t(['meta'], 'readonly').objectStore('meta').get('neUsed'));
+    return Array.isArray(v) ? v : [];
+  },
+  async metaAddUsed(n) {
+    if (!this.ok) return;
+    const t = this.t(['meta'], 'readwrite'), done = txDone(t), os = t.objectStore('meta'), g = os.get('neUsed');
+    g.onsuccess = () => { const s = new Set(Array.isArray(g.result) ? g.result : []); s.add(n); os.put([...s].sort((a, b) => a - b), 'neUsed'); };
+    await done;
+  },
   async partialDrop(session) {
     if (!this.ok) return;
     const t = this.t(['chunks', 'meta'], 'readwrite'), done = txDone(t);
@@ -569,7 +599,7 @@ function askPersist() {
 function storageBanner(extra) {
   const b = $('#storage-banner');
   if (store.ok && !extra) { b.hidden = true; return; }
-  b.textContent = extra || ('Le navigateur refuse le stockage sur ce téléphone (navigation privée ?). Les enregistrements seront perdus si la page se ferme : envoyez chacun tout de suite avec « Envoyer ».');
+  b.textContent = extra || ('Le navigateur refuse le stockage sur ce téléphone (navigation privée ?). Les enregistrements et les textes de référence seront perdus si la page se ferme : envoyez chacun tout de suite avec « Envoyer ».');
   b.hidden = false;
 }
 
@@ -579,15 +609,42 @@ function refText(rec) {
   if (!body) return '';
   return (rec.refOrigin === 'corrige_sortie_radgent' ? '#origine: corrige_sortie_radgent\n' : '') + body + '\n';
 }
+// Métadonnées d'une prise NE (NE001.json) : durée, pauses, récupération, capture, version de la page, téléphone.
+// Jamais le texte de référence. Une prise faite avec une version plus ancienne reçoit un JSON reconstruit (stable).
+function neMetaDoc(rec, extra) {
+  const i = rec.info || {};
+  return Object.assign({format: 'radgent-ne-meta/1', file: rec.name + '.wav', created_utc: rec.created || null,
+    duration_s: rec.duration_s, frames: rec.frames, sample_rate_hz: OUT_RATE, recovered: !!rec.interrupted, stop_reason: rec.stop_reason || null,
+    clock: 'pauses : start_s et end_s = secondes (horloge du téléphone) depuis le début de la prise, audio_s = position du trou dans le fichier ; interruptions : at_s = secondes d\'audio',
+    pauses: i.pauses || [], interruptions: i.interruptions || [], capture: i.capture || null, resampler: i.resampler || null,
+    page_version: i.page_version || null, device: i.device || null}, extra || {});
+}
+function neJson(rec) { return rec.json || JSON.stringify(neMetaDoc(rec, {rebuilt: 'prise faite avec une version plus ancienne de la page'}), null, 1); }
 function filesMeta(rec) {
-  const f = [{name: rec.name + '.wav', type: 'audio/wav', sig: 'wav:' + rec.bytes}];
-  if (rec.kind === 'W1' && rec.json) f.push({name: rec.name + '.json', type: 'application/json', sig: 'json:' + hash(rec.json)});
-  if (rec.kind === 'NE') { const t = refText(rec); if (t) f.push({name: rec.name + '.txt', type: 'text/plain', sig: 'txt:' + hash(t), text: t}); }
+  const s = rec.sent || {}, f = [{name: rec.name + '.wav', type: 'audio/wav', sig: 'wav:' + rec.bytes}];
+  const js = rec.kind === 'W1' ? rec.json : (rec.kind === 'NE' ? neJson(rec) : null);
+  if (js) f.push({name: rec.name + '.json', type: 'application/json', sig: 'json:' + hash(js), text: js});
+  if (rec.kind === 'NE') {
+    const t = refText(rec);
+    if (t) {
+      // texte modifié après un partage : le prochain partage est une NOUVELLE VERSION (même nom de fichier)
+      const name = rec.name + '.txt', sig = 'txt:' + hash(t), prev = s[name], v = rec.refVersion || 1, newer = !!prev && prev !== sig;
+      f.push({name, type: 'text/plain', sig, text: t, newVersion: newer, version: newer ? v + 1 : v});
+    }
+  }
   return f;
 }
 function filesOf(rec, blob) {
-  return filesMeta(rec).map((f) => Object.assign(f, {rec: rec.name,
-    blob: f.type === 'audio/wav' ? blob : new Blob([f.type === 'text/plain' ? f.text : rec.json], {type: f.type})}));
+  return filesMeta(rec).map((f) => Object.assign(f, {rec: rec.name, blob: f.type === 'audio/wav' ? blob : new Blob([f.text], {type: f.type})}));
+}
+function fileLabel(f) { return f.name + (f.newVersion ? ' (NOUVELLE VERSION ' + f.version + ' du texte : gardez seulement celle-ci)' : ''); }
+// Un seul partage à la fois : un double toucher ne relance pas la fenêtre de partage.
+let shareBusy = false;
+function guarded(btn, fn, after) {
+  if (shareBusy) return; shareBusy = true; if (btn) btn.disabled = true;
+  let p; try { p = Promise.resolve(fn()); } catch (e) { p = Promise.resolve(); }
+  // filet : une fenêtre de partage qui ne répond jamais ne bloque pas les boutons plus de 20 s
+  Promise.race([p.catch(() => {}), sleep(20000)]).then(() => { shareBusy = false; if (btn) btn.disabled = false; if (after) after(); });
 }
 function unsentOf(rec) { const s = rec.sent || {}; return filesMeta(rec).filter((f) => s[f.name] !== f.sig); }
 function batchOf(files) {
@@ -612,29 +669,34 @@ async function markSent(files) {
   for (const f of files) { if (!by.has(f.rec)) by.set(f.rec, []); by.get(f.rec).push(f); }
   for (const [name, fs] of by) {
     const rec = (state.recs.find((r) => r.name === name)) || null;
-    const sent = Object.assign({}, rec && rec.sent);
-    for (const f of fs) sent[f.name] = f.sig;
-    if (rec) rec.sent = sent;
-    try { await store.recPatch(name, {sent: sent, sentAt: new Date().toISOString()}); } catch (e) { /* l'état « envoyé » n'est qu'un repère */ }
+    const sent = Object.assign({}, rec && rec.sent), patch = {};
+    for (const f of fs) { sent[f.name] = f.sig; if (f.newVersion) patch.refVersion = f.version; }
+    patch.sent = sent; patch.sentAt = new Date().toISOString();
+    if (rec) Object.assign(rec, patch);
+    try { await store.recPatch(name, patch); } catch (e) { /* l'état « partagé » n'est qu'un repère */ }
   }
 }
 let urls = [];
 function dropUrls() { for (const u of urls) URL.revokeObjectURL(u); urls = []; }
 function fallbackLinks(box, files, why, after) {
   box.innerHTML = '';
-  box.append(h('p', {class: 'banner warn'}, why || 'Le partage direct n\'est pas disponible ici. Téléchargez chaque fichier, puis mettez-le dans Google Drive (dossier « RadGent enregistrements »).'));
+  box.append(h('p', {class: 'banner warn'}, why || 'Le partage direct n\'est pas disponible ici. Téléchargez chaque fichier, puis joignez-le dans la conversation Claude (ou mettez-le dans Google Drive).'));
   for (const f of files) {
     const u = URL.createObjectURL(f.blob); urls.push(u);
-    const a = h('a', {class: 'mid dl', href: u, download: f.name}, 'Télécharger ' + f.name);
+    const a = h('a', {class: 'mid dl', href: u, download: f.name}, 'Télécharger ' + fileLabel(f));
     a.addEventListener('click', () => { a.classList.add('done'); markSent([f]).then(() => { if (after) after(); }); });
     box.append(a);
   }
 }
 async function sendFiles(files, box, after) {
   const r = await tryShare(files);
-  if (r === 'shared') { await markSent(files); box.innerHTML = ''; box.append(h('p', {class: 'toast'}, 'Envoyé : ' + files.map((f) => f.name).join(', '))); if (after) after(); return; }
+  if (r === 'shared') {
+    await markSent(files); box.innerHTML = '';
+    box.append(h('p', {class: 'toast'}, 'Partagé : ' + files.map(fileLabel).join(', ') + '. Vérifiez qu\'ils sont bien arrivés.'));
+    if (after) after(); return;
+  }
   if (r === 'cancelled') { box.innerHTML = ''; box.append(h('p', {class: 'hint'}, 'Envoi annulé. Rien n\'est perdu.')); return; }
-  fallbackLinks(box, files, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis mettez-les dans Google Drive.' : null, after);
+  fallbackLinks(box, files, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis joignez-les dans la conversation Claude (ou mettez-les dans Google Drive).' : null, after);
 }
 
 // ------------------------------------------------------------------------------------------------ messages micro
@@ -665,7 +727,7 @@ function micErrorBox(e) {
 }
 
 // ------------------------------------------------------------------------------------------------ écrans
-const state = {screen: 'home', recs: [], blobs: new Map(), partial: null, recording: false};
+const state = {screen: 'home', recs: [], blobs: new Map(), recording: false};
 const TITLES = {home: 'Enregistreur RadGent', w1setup: 'Liste à lire', w1run: 'Lecture en cours', w1done: 'Liste à lire', ne: 'Jeu neuf', list: 'Mes enregistrements'};
 function show(name) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== 's-' + name;
@@ -691,24 +753,25 @@ $('#back').addEventListener('click', () => { if (!state.recording) { if (history
 window.addEventListener('beforeunload', (e) => { if (state.recording) { e.preventDefault(); e.returnValue = ''; } });
 
 async function loadRecs() { try { state.recs = await store.recsAll(); } catch (e) { state.recs = []; } return state.recs; }
-function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (state.partial) s.add(state.partial.name); if (cur) s.add(cur.name); return s; }
+function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (cur) s.add(cur.name); return s; }
 
 async function refreshHome() {
   await loadRecs();
+  const got = await recoverPartial();
+  if (got) {
+    $('#recover-text').textContent = 'Un enregistrement avait été interrompu (page fermée ou téléphone éteint) : ' + got.name +
+      ' a été récupéré jusqu\'à la dernière sauvegarde (' + fmtDur(got.duration_s) + ').';
+    $('#recover').hidden = false;
+    await loadRecs();
+  }
   const n = state.recs.length, un = state.recs.reduce((a, r) => a + unsentOf(r).length, 0);
-  $('#home-count').textContent = n ? (n + ' enregistrement' + (n > 1 ? 's' : '') + (un ? ' · ' + un + ' fichier' + (un > 1 ? 's' : '') + ' à envoyer' : ' · tout est envoyé')) : 'aucun pour l\'instant';
-  try { state.partial = await store.partialGet(); } catch (e) { state.partial = null; }
-  const p = state.partial, box = $('#recover');
-  if (p && !cur) {
-    $('#recover-text').textContent = 'Un enregistrement a été interrompu avant d\'être gardé : ' + p.name + ' (environ ' + fmtDur((p.frames || 0) / OUT_RATE) + ', commencé le ' + fmtDate(p.startedAt) + ').';
-    box.hidden = false; $('#recover-confirm').hidden = true;
-  } else box.hidden = true;
+  $('#home-count').textContent = n ? (n + ' enregistrement' + (n > 1 ? 's' : '') + (un ? ' · ' + un + ' fichier' + (un > 1 ? 's' : '') + ' à envoyer' : ' · tout est partagé')) : 'aucun pour l\'instant';
   $('#go-w1').disabled = !PH;
 }
 $('#go-w1').addEventListener('click', () => go('w1setup'));
 $('#go-ne').addEventListener('click', () => go('ne'));
 $('#go-list').addEventListener('click', () => go('list'));
-$('#version').textContent = 'Version ' + PAGE_VERSION + '.';
+$('#version').textContent = 'Version ' + PAGE_VERSION;
 
 // ------------------------------------------------------------------------------------------------ session d'enregistrement
 let cur = null;
@@ -719,26 +782,43 @@ function meter(el) {
     shown = Math.max(lvl, shown - 0.06); el.style.width = (shown * 100).toFixed(1) + '%'; el.classList.toggle('clip', pk >= 0.99);
   };
 }
-function beginRecording(kind, name, meterEl, pauseEl, extra) {
+function beginRecording(kind, name, meterEl, pauseEl, extra, liveEl) {
   // Synchrone jusqu'à r.prime() : le contexte audio naît pendant le toucher (iOS).
   const r = new Recorder(meter(meterEl));
+  if (kind === 'NE') r.maxFrames = Math.floor(T.limitAt * OUT_RATE);   // jamais plus de 480,0 s dans le fichier
+  pauseEl.hidden = true; pauseEl.innerHTML = '';
   r.prime();
   const c = {kind, name, r, session: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), seq: 0, startedAt: new Date(),
-             interruptions: [], chain: Promise.resolve(), cpFail: false, extra: extra || (() => ({})), pauseEl};
+             t0wall: performance.now(), interruptions: [], pauses: [], open: {}, chain: Promise.resolve(), cpFail: false,
+             extra: extra || (() => ({})), pauseEl, liveEl, notes: {}};
   return r.start().then(() => {
-    cur = c; state.recording = true; $('#back').hidden = true;
-    wake.on(); askPersist();
+    cur = c; state.recording = true; $('#back').hidden = true; c.t0wall = performance.now();
+    pauseEl.hidden = true; pauseEl.innerHTML = '';
+    liveEl.hidden = true; liveEl.textContent = '';
+    wake.on().then((ok) => { if (!ok && cur === c && kind === 'NE') liveNote(c, 'wake', 'L\'écran pourrait s\'éteindre et couper l\'enregistrement : touchez-le de temps en temps, ou réglez le verrouillage automatique sur « Jamais » le temps de la dictée.'); });
+    askPersist();
+    try { if (navigator.locks && navigator.locks.request) navigator.locks.request(REC_LOCK, () => new Promise((res) => { c.unlock = res; })).catch(() => {}); } catch (e) { /* facultatif */ }
     r.ctx.onstatechange = () => onCtxState(c);
-    r.onLost = () => { c.interruptions.push({at_s: round3(r.now()), what: 'micro perdu'}); if (c.onLost) c.onLost(); };
+    r.onLost = () => { if (r.stopped) return; c.interruptions.push({at_s: round3(r.now()), what: 'micro perdu'}); if (c.onLost) c.onLost(); };
+    r.onMute = () => pauseOpen(c, 'mute', 'micro coupé par le téléphone (piste « muted » : arrière-plan, appel ou écran verrouillé)');
+    r.onUnmute = () => pauseClose(c, 'mute', 'micro rendu par le téléphone');
     checkpoint(c, true);
     c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000);
     return c;
   }, (e) => { r.abort(); throw e; });
 }
 const round3 = (x) => Math.round(x * 1000) / 1000;
+function liveNote(c, key, text) { if (c.notes[key] === text) return; c.notes[key] = text; liveRender(c); }
+function liveClear(c, key) { if (!(key in c.notes)) return; delete c.notes[key]; liveRender(c); }
+function liveRender(c) { const t = Object.values(c.notes).join(' '); c.liveEl.textContent = t; c.liveEl.hidden = !t; w1Fit(); }
+function liveChecks(c) {
+  // fenêtre récente (3 s) : l'alerte apparaît aussi quand le son disparaît en cours de route, et s'efface quand il revient
+  if (c.r.elapsed() > T.silenceWin && c.r.recentPeak() < 1e-4) liveNote(c, 'silence', 'Le micro ne capte aucun son depuis ' + T.silenceWin + ' s. S\'il reste muet (appel, autre application), arrêtez, rechargez la page et réessayez.');
+  else liveClear(c, 'silence');
+}
 function partialOf(c) {
-  return Object.assign({session: c.session, kind: c.kind, name: c.name, startedAt: c.startedAt.toISOString(), frames: c.r.outFrames,
-                        audio: c.r.audioInfo(), device: deviceInfo(), interruptions: c.interruptions}, c.extra());
+  return Object.assign({session: c.session, kind: c.kind, name: c.name, startedAt: c.startedAt.toISOString(), updatedAt: Date.now(), frames: c.r.outFrames,
+                        audio: c.r.audioInfo(), device: deviceInfo(), interruptions: c.interruptions, pauses: c.pauses, page_version: PAGE_VERSION}, c.extra());
 }
 function checkpoint(c, metaOnly) {
   const b = metaOnly ? null : c.r.takeBlock(), seq = b ? c.seq++ : null, p = partialOf(c);
@@ -746,23 +826,51 @@ function checkpoint(c, metaOnly) {
     if (!c.cpFail) { c.cpFail = true; storageBanner('La sauvegarde de sécurité pendant l\'enregistrement échoue (stockage plein ou refusé). Envoyez vos fichiers dès la fin.'); }
   });
 }
+// Pauses : contexte audio suspendu ou interrompu (iOS), ou piste micro « muted ». Chaque pause est notée (début, fin) dans
+// les métadonnées ; l'audio de ce passage manque dans le fichier. La fermeture du contexte à l'arrêt n'est PAS une pause.
+const wallS = (c) => round3((performance.now() - c.t0wall) / 1000);
+function pauseOpen(c, key, why) {
+  if (cur !== c || c.r.stopped || c.open[key]) return;
+  const p = {why, start_s: wallS(c), end_s: null, audio_s: round3(c.r.outFrames / OUT_RATE)};
+  c.open[key] = p; c.pauses.push(p);
+  c.interruptions.push({at_s: round3(c.r.elapsed()), what: why});
+  pauseBanner(c); checkpoint(c, true);
+}
+function pauseClose(c, key, how) {
+  const p = c.open[key]; if (!p) return;
+  p.end_s = wallS(c); p.missing_s = round3(p.end_s - p.start_s); if (how) p.end = how;
+  delete c.open[key];
+  if (cur === c && !c.r.stopped) { pauseBanner(c); checkpoint(c, true); }
+}
+function pauseBanner(c) {
+  const el = c.pauseEl; el.innerHTML = '';
+  if (!Object.keys(c.open).length) { el.hidden = true; w1Fit(); return; }
+  el.append(h('b', {}, 'En pause : '), 'le téléphone a coupé le micro (appel, autre application ou écran verrouillé). Ce passage manquera dans l\'audio. ',
+    h('button', {class: 'mid primary', 'data-act': 'resume', onclick: () => resumeRec(c)}, 'Reprendre'));
+  if (c.open.mute && c.resumeTried) el.append(h('p', {}, 'Le micro est encore coupé par le téléphone. Si rien ne change, arrêtez et refaites la prise.'));
+  el.hidden = false; w1Fit();
+}
+function resumeRec(c) {
+  if (cur !== c || c.r.stopped) return;
+  c.resumeTried = true;
+  try { c.r.ctx.resume().then(() => onCtxState(c), () => {}); } catch (e) { /* rien */ }
+  if (c.open.mute && c.r.track && !c.r.track.muted) pauseClose(c, 'mute', 'Reprendre'); else pauseBanner(c);
+}
 function onCtxState(c) {
-  if (cur !== c) return;
+  if (cur !== c || c.r.stopped) return;                 // événements d'un enregistreur arrêté : ignorés
   const st = c.r.ctx.state;
-  if (st !== 'running') {
-    c.interruptions.push({at_s: round3(c.r.elapsed()), what: 'son en pause (' + st + ')'});
-    c.pauseEl.innerHTML = ''; c.pauseEl.hidden = false;
-    c.pauseEl.append('L\'enregistrement est en pause (appel ou autre application). ',
-      h('button', {class: 'mid primary', onclick: () => { c.r.ctx.resume().catch(() => {}); }}, 'Reprendre'));
-  } else c.pauseEl.hidden = true;
+  if (st === 'closed') return;                          // fermeture normale à l'arrêt : pas une pause
+  if (st === 'running') pauseClose(c, 'ctx', 'son repris'); else pauseOpen(c, 'ctx', 'son en pause (' + st + ')');
 }
 async function stopRecording() {
   const c = cur; clearInterval(c.cpTimer);
   await c.r.stop();
+  for (const k of Object.keys(c.open)) { const p = c.open[k]; p.end_s = wallS(c); p.missing_s = round3(p.end_s - p.start_s); p.open_at_stop = true; delete c.open[k]; }
   wake.off();
   await c.chain;
+  if (c.unlock) c.unlock();
   const blob = new Blob([wavHeader(c.r.outFrames, OUT_RATE), ...c.r.blocks], {type: 'audio/wav'});
-  c.pauseEl.hidden = true;
+  c.pauseEl.hidden = true; c.pauseEl.innerHTML = ''; c.liveEl.hidden = true;
   return {c, blob, info: c.r.audioInfo()};
 }
 async function persist(rec, blob, session) {
@@ -778,17 +886,18 @@ function notSavedBox(name) {
 function silentNote(info) { return (info.peak_dbfs === null || info.peak_dbfs < -60) ? h('div', {class: 'banner warn'}, 'Presque aucun son capté : vérifiez le micro (prise à supprimer seulement si c\'est une panne).') : null; }
 const wake = {
   lock: null,
-  async on() { try { if ('wakeLock' in navigator) { this.lock = await navigator.wakeLock.request('screen'); } } catch (e) { this.lock = null; } },
+  async on() { try { if ('wakeLock' in navigator) { this.lock = await navigator.wakeLock.request('screen'); } } catch (e) { this.lock = null; } return !!this.lock; },
   off() { try { if (this.lock) this.lock.release().catch(() => {}); } catch (e) { /* rien */ } this.lock = null; },
 };
 document.addEventListener('visibilitychange', () => {
   if (!cur) return;
-  if (document.visibilityState === 'visible') wake.on();
+  if (document.visibilityState === 'visible') { wake.on(); cur.interruptions.push({at_s: round3(cur.r.elapsed()), what: 'page de nouveau visible'}); }
   else cur.interruptions.push({at_s: round3(cur.r.elapsed()), what: 'page cachée (écran éteint ou autre application)'});
 });
 
 // ------------------------------------------------------------------------------------------------ W1 : réglages
-const W1 = {day: '1', block: 'A'};
+const W1 = {day: '1', block: 'A', redo: null};
+const W1_ORDER = [['1', 'A'], ['1', 'B'], ['2', 'A'], ['2', 'B']];
 function segInit(id, key) {
   for (const b of document.querySelectorAll('#' + id + ' button')) b.addEventListener('click', () => { W1[key] = b.dataset.v; w1SetupRender(false); });
 }
@@ -796,48 +905,64 @@ segInit('w1-day', 'day'); segInit('w1-block', 'block');
 $('#w1-voice').addEventListener('input', () => w1SetupRender(false));
 function w1Base(voice, day, block) { return 'W1_' + voice + '_J' + day + '_' + block; }
 function uniqueName(base) { const t = takenNames(); if (!t.has(base)) return base; let i = 2; while (t.has(base + '_' + i)) i++; return base + '_' + i; }
+// Prises d'un bloc : W1_moi_J1_A, W1_moi_J1_A_2 (refaite), W1_moi_J1_A_r2 (récupérée). Un bloc est fait s'il a une prise complète.
+const sameBlock = (name, base) => name === base || (name.startsWith(base + '_') && /^_r?\d+$/.test(name.slice(base.length)));
+function w1Takes(base) { return state.recs.filter((r) => r.kind === 'W1' && sameBlock(r.name, base)); }
+function w1Done(base) { return w1Takes(base).some((r) => r.complete === true); }
 async function w1SetupRender(entering) {
   if (entering) {
     $('#w1-error').innerHTML = '';
-    $('#w1-voice').value = prefs.get('voice', 'moi');
     await loadRecs();
-    const v = cleanVoice($('#w1-voice').value);
-    const next = [['1', 'A'], ['1', 'B'], ['2', 'A'], ['2', 'B']].find(([d, b]) => !takenNames().has(w1Base(v, d, b)));
-    if (next) { W1.day = next[0]; W1.block = next[1]; }
+    const redo = W1.redo; W1.redo = null;
+    if (redo) { $('#w1-voice').value = redo.voice; W1.day = redo.day; W1.block = redo.block; }
+    else {
+      $('#w1-voice').value = 'moi';                    // toujours « moi » au départ : une autre voix est un choix explicite
+      const next = W1_ORDER.find(([d, b]) => !w1Done(w1Base('moi', d, b)));
+      if (next) { W1.day = next[0]; W1.block = next[1]; }
+    }
   }
   for (const b of document.querySelectorAll('#w1-day button')) b.setAttribute('aria-pressed', String(b.dataset.v === W1.day));
   for (const b of document.querySelectorAll('#w1-block button')) b.setAttribute('aria-pressed', String(b.dataset.v === W1.block));
   const v = cleanVoice($('#w1-voice').value), base = w1Base(v, W1.day, W1.block), name = uniqueName(base);
   $('#w1-file').textContent = name + '.wav';
   const notes = [];
-  if (name !== base) notes.push(base + ' existe déjà : la nouvelle prise s\'appellera ' + name + '.wav (l\'ancienne est gardée).');
+  if (name !== base) {
+    if (!w1Done(base)) notes.push(base + ' est incomplet : refaites ce bloc. La nouvelle prise s\'appellera ' + name + '.wav (l\'ancienne est gardée).');
+    else notes.push(base + ' existe déjà : la nouvelle prise s\'appellera ' + name + '.wav (l\'ancienne est gardée).');
+  }
   if (W1.day === '2') {
-    const j1 = state.recs.find((r) => r.name === w1Base(v, '1', W1.block));
+    const j1s = w1Takes(w1Base(v, '1', W1.block)), j1 = j1s.find((r) => r.complete === true) || j1s[0];
     if (!j1) notes.push('Le jour 1 de ce bloc n\'est pas sur ce téléphone.');
     else { const hrs = (Date.now() - new Date(j1.created).getTime()) / 3.6e6; if (hrs < 24) notes.push('Le jour 1 de ce bloc date de ' + Math.max(0, Math.floor(hrs)) + ' h : attendez au moins 24 h.'); }
   }
   $('#w1-note').textContent = notes.join(' '); $('#w1-note').hidden = !notes.length;
+  const vn = $('#w1-voicenote');
+  if (v !== 'moi') {
+    vn.textContent = 'Voix « ' + v + ' » : ce n\'est pas « moi ». Le fichier s\'appellera ' + name + '.wav. Touchez « Commencer » seulement si c\'est bien cette personne qui lit.' +
+      (/^collegue\d+$/.test(v) ? '' : ' Préférez une étiquette neutre (collegue1, collegue2…), jamais un prénom.');
+    vn.hidden = false;
+  } else { vn.textContent = ''; vn.hidden = true; }
 }
 
 // ------------------------------------------------------------------------------------------------ W1 : lecture
 let W = null;
 $('#w1-start').addEventListener('click', () => {
   if (state.recording || W && W.starting) return;
-  const voice = cleanVoice($('#w1-voice').value); prefs.set('voice', voice);
+  const voice = cleanVoice($('#w1-voice').value);
   const name = uniqueName(w1Base(voice, W1.day, W1.block));
-  W = {voice, day: W1.day, block: W1.block, name, list: sentencesFor(W1.block, W1.day), idx: -1, shown: [], errors: [], lastTap: 0, finishing: false, starting: true};
+  W = {voice, day: W1.day, block: W1.block, name, list: sentencesFor(W1.block, W1.day), idx: -1, shown: [], errors: [], lastTap: 0, lastErr: 0, finishing: false, starting: true};
   $('#w1-error').innerHTML = '';
   $('#w1-sentence').textContent = ''; $('#w1-pos').textContent = 'Préparation du micro…'; $('#w1-id').textContent = '';
   $('#w1-next').disabled = true; $('#w1-err').disabled = true; $('#w1-toast').textContent = ''; $('#w1-stopconfirm').hidden = true;
   $('#w1-time').textContent = '00:00'; $('#w1-progbar').style.width = '0';
   const w = W;
   let p;
-  try { p = beginRecording('W1', name, $('#w1-meter'), $('#w1-pause'), () => w1Extra(w)); } catch (e) { p = Promise.reject(e); }
+  try { p = beginRecording('W1', name, $('#w1-meter'), $('#w1-pause'), () => w1Extra(w), $('#w1-live')); } catch (e) { p = Promise.reject(e); }
   go('w1run', 'replace');
   p.then((c) => {
     w.starting = false;
     c.onLost = () => { if (!w.finishing) w1Finish(false, 'Le micro a été coupé : l\'enregistrement est arrêté et gardé.'); };
-    c.tick = setInterval(() => { const s = c.r.elapsed(); $('#w1-time').textContent = fmtClock(s); if (s >= T.w1Limit && !w.finishing) w1Finish(false, 'Arrêt automatique après ' + fmtDur(T.w1Limit) + '.'); }, 250);
+    c.tick = setInterval(() => { const s = c.r.elapsed(); $('#w1-time').textContent = fmtClock(s); liveChecks(c); if (s >= T.w1Limit && !w.finishing) w1Finish(false, 'Arrêt automatique après ' + fmtDur(T.w1Limit) + '.'); }, 250);
     $('#w1-next').disabled = false; $('#w1-err').disabled = false;
     w1Advance(true);
   }, (e) => {
@@ -855,39 +980,58 @@ function fitSentence(el) {
   while (size > 18 && el.scrollWidth > el.clientWidth + 1) { size -= 1; el.style.fontSize = size + 'px'; }
   return size;
 }
+// « Suivant » reste toujours visible sans défiler (360 x 640 compris) : la phrase rétrécit, ses marges aussi.
+function w1Fit() {
+  const el = $('#w1-sentence'), btn = $('#w1-next');
+  if (state.screen !== 'w1run' || !el.textContent) return 0;
+  el.style.minHeight = '';
+  let size = fitSentence(el);
+  const over = () => btn.getBoundingClientRect().bottom + window.scrollY - (window.innerHeight - 4);
+  if (over() > 0) el.style.minHeight = Math.max(0, el.getBoundingClientRect().height - over()) + 'px';
+  while (size > 15 && over() > 0) { size -= 1; el.style.fontSize = size + 'px'; }
+  return size;
+}
+window.addEventListener('resize', () => { if (state.screen === 'w1run') w1Fit(); });
 function w1Advance(first) {
   const w = W; if (!w || w.finishing || !cur) return;
   const now = performance.now();
   if (!first && now - w.lastTap < T.tapGuardMs) return;
   w.lastTap = now;
-  if (w.idx >= w.list.length - 1) { w1Finish(true); return; }
+  if (w.idx >= w.list.length - 1) { w1Finish(true, null, T.w1TailMs); return; }
   w.idx++;
   const s = w.list[w.idx], last = w.idx === w.list.length - 1;
   w.shown.push({index: w.idx + 1, id: s.id, text: s.text, start_s: round3(cur.r.now())});
-  const el = $('#w1-sentence'); el.textContent = s.text; fitSentence(el);
+  $('#w1-sentence').textContent = s.text;
   $('#w1-pos').textContent = 'Phrase ' + (w.idx + 1) + ' / ' + w.list.length; $('#w1-id').textContent = s.id;
   $('#w1-progbar').style.width = ((w.idx + 1) / w.list.length * 100).toFixed(1) + '%';
   $('#w1-next').textContent = last ? 'Terminer et enregistrer' : 'Suivant';
   $('#w1-toast').textContent = '';
+  w1Fit();
   checkpoint(cur, true);
 }
 $('#w1-next').addEventListener('click', () => w1Advance(false));
 $('#w1-err').addEventListener('click', () => {
   const w = W; if (!w || w.idx < 0 || !cur || w.finishing) return;
-  const s = w.list[w.idx];
+  const s = w.list[w.idx], now = performance.now(), prev = w.errors[w.errors.length - 1];
+  if (prev && prev.id === s.id && now - w.lastErr < T.errGuardMs) return;   // double toucher : une seule erreur
+  w.lastErr = now;
   w.errors.push({id: s.id, index: w.idx + 1, at_s: round3(cur.r.now())});
   $('#w1-toast').textContent = 'Erreur notée (' + s.id + ') : relisez toute la phrase.';
   checkpoint(cur, true);
 });
 $('#w1-stop').addEventListener('click', () => { if (W && !W.finishing && cur) $('#w1-stopconfirm').hidden = false; });
 $('#w1-stopno').addEventListener('click', () => { $('#w1-stopconfirm').hidden = true; });
-$('#w1-stopyes').addEventListener('click', () => { $('#w1-stopconfirm').hidden = true; w1Finish(false, 'Arrêté avant la fin de la liste.'); });
-async function w1Finish(complete, why) {
+$('#w1-stopyes').addEventListener('click', () => { $('#w1-stopconfirm').hidden = true; w1Finish(false, 'Arrêté avant la fin de la liste.', T.w1TailMs); });
+async function w1Finish(complete, why, tailMs) {
   const w = W; if (!w || w.finishing || !cur) return;
   w.finishing = true;
+  const c = cur;
   $('#w1-next').disabled = true; $('#w1-err').disabled = true;
+  w.endTap = round3(c.r.now());
+  // le micro tourne encore 0,6 s après le toucher : la fin du dernier mot n'est pas coupée
+  if (tailMs > 0) { $('#w1-pos').textContent = 'Fin de l\'enregistrement…'; await sleep(tailMs); }
   $('#w1-pos').textContent = 'Enregistrement sur le téléphone…';
-  const c = cur; clearInterval(c.tick);
+  clearInterval(c.tick);
   const {blob, info} = await stopRecording();
   const created = c.startedAt;
   const doc = {
@@ -897,6 +1041,8 @@ async function w1Finish(complete, why) {
     complete: !!complete, n_planned: w.list.length, n_shown: w.shown.length,
     clock: 'start_s et at_s : secondes depuis le premier échantillon du fichier (horloge du contexte audio), au moment où la phrase s\'affiche ou où le bouton est touché',
     sentences: w.shown, reading_errors: w.errors, interruptions: c.interruptions, stop_reason: why || 'fin de la liste',
+    end_tap_s: w.endTap, tail_s: (tailMs || 0) / 1000,
+    pauses: c.pauses, pauses_clock: 'start_s et end_s : secondes (horloge du téléphone) depuis le début ; audio_s : position du trou dans le fichier',
     audio: info, device: deviceInfo(),
   };
   const json = JSON.stringify(doc, null, 1);
@@ -914,70 +1060,108 @@ function w1DoneRender(rec, blob, ok, why, info) {
     ', ' + doc.reading_errors.length + ' erreur' + (doc.reading_errors.length > 1 ? 's' : '') + ' de lecture notée' + (doc.reading_errors.length > 1 ? 's' : '') + '.' + (ok ? ' Gardé sur le téléphone.' : '');
   const box = $('#w1-done-warn'); box.innerHTML = '';
   if (!ok) box.append(notSavedBox(rec.name));
-  if (why && !rec.complete) box.append(h('div', {class: 'banner warn'}, why));
+  if (!rec.complete) {
+    const next = uniqueName(w1Base(doc.voice, String(doc.day).replace('J', ''), doc.block));
+    box.append(h('div', {class: 'banner warn', 'data-act': 'incomplete'}, h('b', {}, 'Bloc incomplet : '),
+      doc.n_shown + ' phrase' + (doc.n_shown > 1 ? 's' : '') + ' sur ' + doc.n_planned + '. ' + (why ? why + ' ' : '') +
+      'Touchez « Refaire ce bloc » : la nouvelle prise s\'appellera ' + next + '.wav (celle-ci reste gardée).'));
+  }
   const sil = silentNote(info); if (sil) box.append(sil);
+  $('#w1-redo').hidden = !!rec.complete; $('#w1-again').hidden = !rec.complete;
   $('#w1-send-out').innerHTML = '';
   go('w1done', 'replace');
 }
-$('#w1-send').addEventListener('click', () => { if (lastDone) sendFiles(filesOf(lastDone.rec, lastDone.blob), $('#w1-send-out'), null); });
+$('#w1-send').addEventListener('click', (e) => { if (lastDone) guarded(e.currentTarget, () => sendFiles(filesOf(lastDone.rec, lastDone.blob), $('#w1-send-out'), null)); });
 $('#w1-again').addEventListener('click', () => go('w1setup'));
+$('#w1-redo').addEventListener('click', () => {
+  if (!lastDone) return;
+  const d = JSON.parse(lastDone.rec.json);
+  W1.redo = {voice: d.voice, day: String(d.day).replace('J', ''), block: d.block};
+  go('w1setup');
+});
 $('#w1-tolist').addEventListener('click', () => go('list'));
 
 // ------------------------------------------------------------------------------------------------ Jeu neuf
 const NE = {n: 1, phase: 'ready', last: null, warned: false, stopping: false};
 const neName = (n) => 'NE' + String(n).padStart(3, '0');
+const neNum = (name) => { const m = /^NE(\d+)/.exec(String(name || '')); return m ? parseInt(m[1], 10) : 0; };
+// Numéros déjà utilisés sur ce téléphone (prise gardée, récupérée, supprimée ou en cours) : jamais proposés de nouveau.
+const neUsedMem = new Set();
+function neUsedPref() { const a = prefs.get('neUsed', []); return (Array.isArray(a) ? a : []).map((v) => parseInt(v, 10)).filter((v) => v > 0); }
+function neUsed() {
+  const s = new Set(neUsedMem);
+  for (const n of neUsedPref()) s.add(n);
+  for (const r of state.recs) { const n = neNum(r.name); if (n) s.add(n); }
+  if (cur && cur.kind === 'NE') s.add(neNum(cur.name));
+  return s;
+}
+async function neMarkUsed(name) {
+  const n = neNum(name); if (!n) return;
+  neUsedMem.add(n);
+  const list = new Set(neUsedPref()); list.add(n);
+  prefs.set('neUsed', [...list].sort((a, b) => a - b));
+  prefs.set('neNext', Math.max(n + 1, parseInt(prefs.get('neNext', 1), 10) || 1));
+  try { await store.metaAddUsed(n); } catch (e) { /* localStorage suffit */ }
+}
+async function neLoadUsed() {
+  try { for (const n of await store.metaUsed()) if (n > 0) neUsedMem.add(n); } catch (e) { /* facultatif */ }
+  try { const p = await store.partialGet(); if (p && p.kind === 'NE' && neNum(p.name)) neUsedMem.add(neNum(p.name)); } catch (e) { /* facultatif */ }
+}
 function nePhase(p) {
   NE.phase = p;
   $('#ne-ready').hidden = p !== 'ready'; $('#ne-recording').hidden = p !== 'recording'; $('#ne-stopped').hidden = p !== 'stopped';
-  $('#ne-recbar').hidden = p !== 'recording'; $('#ne-edit').disabled = p !== 'ready';
+  $('#ne-recbar').hidden = p !== 'recording'; $('#ne-edit').hidden = p !== 'ready';
   $('#ne-rules').hidden = p === 'recording'; $('#ne-hint').hidden = p !== 'ready';
   if (p !== 'recording') $('#ne-warn').hidden = true;
 }
 async function neEnter() {
   if (NE.phase === 'recording') return;
   if (!(NE.phase === 'stopped' && NE.last)) { NE.last = null; neFree(); nePhase('ready'); }
-  await loadRecs();
+  await loadRecs(); await neLoadUsed();
   if (NE.phase === 'stopped' && NE.last && !state.recs.find((r) => r.name === NE.last.rec.name)) { NE.last = null; nePhase('ready'); }
   if (NE.phase === 'ready') neFree();
 }
 function neFree() {
-  const t = takenNames(); let n = Math.max(1, parseInt(prefs.get('neNext', 1), 10) || 1);
-  while (t.has(neName(n)) && n < 999) n++;
+  const t = takenNames(), used = neUsed(); let n = Math.max(1, parseInt(prefs.get('neNext', 1), 10) || 1);
+  while ((t.has(neName(n)) || used.has(n)) && n < 999) n++;
   NE.n = n; neSlot();
 }
+function neBlocked(n) { return takenNames().has(neName(n)) ? 'exists' : (neUsed().has(n) ? 'used' : ''); }
 function neSlot() {
   $('#ne-slot').textContent = neName(NE.n);
-  const taken = takenNames().has(neName(NE.n));
-  $('#ne-note').textContent = taken ? neName(NE.n) + ' existe déjà sur ce téléphone : choisissez un autre numéro.' : '';
-  $('#ne-note').hidden = !taken; $('#ne-rec').disabled = taken;
+  const b = neBlocked(NE.n);
+  $('#ne-note').textContent = b === 'exists' ? neName(NE.n) + ' existe déjà sur ce téléphone : choisissez un autre numéro.' :
+    (b === 'used' ? neName(NE.n) + ' a déjà servi sur ce téléphone (prise supprimée) : un numéro ne revient jamais. Choisissez-en un autre.' : '');
+  $('#ne-note').hidden = !b; $('#ne-rec').disabled = !!b;
 }
 $('#ne-edit').addEventListener('click', () => { $('#ne-editbox').hidden = !$('#ne-editbox').hidden; $('#ne-num').value = NE.n; });
 $('#ne-numok').addEventListener('click', () => {
   const v = parseInt($('#ne-num').value, 10);
   if (!(v >= 1 && v <= 999)) { $('#ne-note').textContent = 'Numéro entre 1 et 999.'; $('#ne-note').hidden = false; return; }
-  NE.n = v; prefs.set('neNext', v); $('#ne-editbox').hidden = true; neSlot();
+  NE.n = v; if (!neBlocked(v)) prefs.set('neNext', v); $('#ne-editbox').hidden = true; neSlot();
 });
 $('#ne-rec').addEventListener('click', () => {
   if (state.recording || NE.phase !== 'ready' || NE.starting) return;
   const name = neName(NE.n);
-  if (takenNames().has(name)) { neSlot(); return; }
+  if (neBlocked(NE.n)) { neSlot(); return; }
   NE.starting = true; NE.warned = false; NE.stopping = false;
   $('#ne-error').innerHTML = ''; $('#ne-time').textContent = '00:00'; $('#ne-editbox').hidden = true;
   $('#ne-rec').disabled = true; $('#ne-rec').textContent = 'Préparation du micro…';
   let p;
-  try { p = beginRecording('NE', name, $('#ne-meter'), $('#ne-pause'), null); } catch (e) { p = Promise.reject(e); }
+  try { p = beginRecording('NE', name, $('#ne-meter'), $('#ne-pause'), null, $('#ne-live')); } catch (e) { p = Promise.reject(e); }
   p.then((c) => {
     NE.starting = false; $('#ne-rec').textContent = 'Enregistrer';
     nePhase('recording');
     c.onLost = () => neStop('Le micro a été coupé : l\'enregistrement est arrêté et gardé.');
     c.tick = setInterval(() => {
-      const s = c.r.elapsed(); $('#ne-time').textContent = fmtClock(s);
+      const s = c.r.elapsed(); $('#ne-time').textContent = fmtClock(s); liveChecks(c);
       if (s >= T.warnAt && !NE.warned) {
         NE.warned = true; $('#ne-warn').hidden = false;
         $('#ne-warn').textContent = fmtClock(T.warnAt) + ' : il reste ' + fmtDur(T.limitAt - T.warnAt) + ' avant la limite de ' + fmtDur(T.limitAt) + '. Terminez la dictée.';
         try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) { /* facultatif */ }
       }
-      if (s >= T.limitAt) neStop('Arrêt automatique à ' + fmtDur(T.limitAt) + ' (limite du produit).');
+      // arrêt un peu AVANT la limite ; le plafond de l'enregistreur garantit au plus 480,0 s dans le fichier
+      if (s >= T.limitAt - T.stopEarly || c.r.capped) neStop('Arrêt automatique à ' + fmtDur(T.limitAt) + ' (limite du produit).');
     }, 250);
   }, (e) => {
     NE.starting = false; $('#ne-rec').textContent = 'Enregistrer'; $('#ne-rec').disabled = false;
@@ -992,8 +1176,10 @@ async function neStop(why) {
   const {blob, info} = await stopRecording();
   const rec = {name: c.name, kind: 'NE', created: c.startedAt.toISOString(), duration_s: info.duration_s, frames: info.frames, bytes: blob.size,
                sent: {}, ref: '', refOrigin: '', interrupted: false, stop_reason: why || 'arrêt',
-               info: {capture: info.capture, resampler: info.resampler, interruptions: c.interruptions, device: deviceInfo(), page_version: PAGE_VERSION}};
+               info: {capture: info.capture, resampler: info.resampler, interruptions: c.interruptions, pauses: c.pauses, device: deviceInfo(), page_version: PAGE_VERSION}};
+  rec.json = JSON.stringify(neMetaDoc(rec, {created_local: localIso(c.startedAt), limit_s: T.limitAt, audio: info}), null, 1);
   const ok = await persist(rec, blob, c.session);
+  await neMarkUsed(rec.name);                         // le numéro avance dès que la prise est gardée (pas seulement sur « Garder »)
   $('#ne-stop').disabled = false; $('#ne-stop').textContent = 'Arrêter'; NE.stopping = false;
   NE.last = {rec, blob};
   const box = $('#ne-saved'); box.innerHTML = '';
@@ -1014,11 +1200,7 @@ $('#ne-play').addEventListener('click', () => {
   a.play().then(() => { $('#ne-play').textContent = 'Arrêter la lecture'; }, () => { $('#ne-play').textContent = 'Réécouter'; });
 });
 $('#ne-audio').addEventListener('ended', nePlayReset);
-$('#ne-keep').addEventListener('click', () => {
-  nePlayReset();
-  if (NE.last) { const m = /^NE(\d+)$/.exec(NE.last.rec.name); if (m) prefs.set('neNext', parseInt(m[1], 10) + 1); }
-  NE.last = null; neFree(); nePhase('ready');
-});
+$('#ne-keep').addEventListener('click', () => { nePlayReset(); NE.last = null; neFree(); nePhase('ready'); });
 $('#ne-del').addEventListener('click', () => {
   if (!NE.last) return;
   $('#ne-deltext').textContent = 'Supprimer ' + NE.last.rec.name + ' définitivement ? À faire seulement si un nom de patient a été dit, ou en cas de panne.';
@@ -1028,11 +1210,11 @@ $('#ne-delno').addEventListener('click', () => { $('#ne-delconfirm').hidden = tr
 $('#ne-delyes').addEventListener('click', async () => {
   if (!NE.last) return;
   nePlayReset();
-  const name = NE.last.rec.name, m = /^NE(\d+)$/.exec(name);
+  const name = NE.last.rec.name;
+  await neMarkUsed(name);
   await store.recDelete(name); await loadRecs();
-  NE.last = null; if (m) prefs.set('neNext', parseInt(m[1], 10));
-  neFree(); nePhase('ready');
-  $('#ne-note').textContent = 'Prise supprimée. Vous pouvez recommencer ' + name + '.'; $('#ne-note').hidden = false;
+  NE.last = null; neFree(); nePhase('ready');
+  $('#ne-note').textContent = 'Prise supprimée. Son numéro ' + name + ' ne sera pas réutilisé : la prochaine dictée sera ' + neName(NE.n) + '.'; $('#ne-note').hidden = false;
 });
 
 // ------------------------------------------------------------------------------------------------ Mes enregistrements
@@ -1074,20 +1256,22 @@ function allUnsentFiles() {
 }
 function listSendAllLabel() {
   const n = allUnsentFiles().length, b = $('#list-sendall');
-  b.disabled = !n; b.textContent = n ? 'Tout envoyer (' + n + ' fichier' + (n > 1 ? 's' : '') + ' non envoyé' + (n > 1 ? 's' : '') + ')' : 'Tout est envoyé';
+  b.disabled = !n || shareBusy;
+  b.textContent = n ? 'Tout envoyer (' + n + ' fichier' + (n > 1 ? 's' : '') + ' pas encore partagé' + (n > 1 ? 's' : '') + ')' : 'Tout est partagé';
 }
-$('#list-sendall').addEventListener('click', () => {
+$('#list-sendall').addEventListener('click', (e) => {
   const all = allUnsentFiles(); if (!all.length) return;
-  const batch = batchOf(all), out = $('#list-out');
-  const p = tryShare(batch);
-  p.then(async (r) => {
-    if (r === 'shared') {
-      await markSent(batch); await refreshCards();
-      const left = allUnsentFiles().length;
-      out.innerHTML = ''; out.append(h('p', {class: 'toast'}, batch.length + ' fichier' + (batch.length > 1 ? 's' : '') + ' envoyé' + (batch.length > 1 ? 's' : '') + '.' + (left ? ' Touchez encore « Tout envoyer » pour la suite.' : '')));
-    } else if (r === 'cancelled') { out.innerHTML = ''; out.append(h('p', {class: 'hint'}, 'Envoi annulé. Rien n\'est perdu.')); }
-    else fallbackLinks(out, all, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis mettez-les dans Google Drive.' : null, refreshCards);
-  });
+  guarded(e.currentTarget, () => {
+    const batch = batchOf(all), out = $('#list-out');
+    return tryShare(batch).then(async (r) => {
+      if (r === 'shared') {
+        await markSent(batch); await refreshCards();
+        const left = allUnsentFiles().length;
+        out.innerHTML = ''; out.append(h('p', {class: 'toast'}, 'Partagé : ' + batch.map(fileLabel).join(', ') + '. Vérifiez qu\'ils sont bien arrivés.' + (left ? ' Touchez encore « Tout envoyer » pour la suite.' : '')));
+      } else if (r === 'cancelled') { out.innerHTML = ''; out.append(h('p', {class: 'hint'}, 'Envoi annulé. Rien n\'est perdu.')); }
+      else fallbackLinks(out, all, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis joignez-les dans la conversation Claude (ou mettez-les dans Google Drive).' : null, refreshCards);
+    });
+  }, listSendAllLabel);
 });
 async function refreshCards() {
   await loadRecs();
@@ -1098,7 +1282,8 @@ async function refreshCards() {
 }
 function badge(r) {
   const un = unsentOf(r), all = filesMeta(r);
-  if (!un.length) return h('span', {class: 'badge sent'}, 'envoyé');
+  if (!un.length) return h('span', {class: 'badge sent'}, 'partagé (vérifie qu\'il est bien arrivé)');
+  if (un.some((f) => f.newVersion)) return h('span', {class: 'badge unsent'}, 'texte modifié : nouvelle version à envoyer');
   if (un.length < all.length) return h('span', {class: 'badge unsent'}, un.map((f) => f.name.split('.').slice(1).join('.')).join(', ') + ' à envoyer');
   return h('span', {class: 'badge unsent'}, 'à envoyer');
 }
@@ -1119,70 +1304,110 @@ function itemCard(r) {
       if (audio.hidden) { if (!audio.src) { const u = URL.createObjectURL(blob); urls.push(u); audio.src = u; } audio.hidden = false; audio.play().catch(() => {}); }
       else { audio.pause(); audio.hidden = true; }
     }}, 'Écouter'),
-    h('button', {class: 'mid primary', 'data-act': 'send', onclick: () => { if (blob) sendFiles(filesOf(state.recs.find((x) => x.name === r.name) || r, blob), out, refreshCards); }}, 'Envoyer'),
-    h('button', {class: 'mid', 'data-act': 'del', onclick: () => { confirm.hidden = false; }}, 'Supprimer'));
+    h('button', {class: 'mid primary', 'data-act': 'send', onclick: (e) => {
+      if (blob) guarded(e.currentTarget, () => sendFiles(filesOf(state.recs.find((x) => x.name === r.name) || r, blob), out, refreshCards));
+    }}, 'Envoyer'),
+    h('button', {class: 'mid', 'data-act': 'del', onclick: () => {
+      // toujours une confirmation ; « partagé » ne prouve pas que le fichier est arrivé
+      const now = state.recs.find((x) => x.name === r.name) || r, un = unsentOf(now).length;
+      confirmText.textContent = 'Supprimer ' + r.name + ' définitivement de ce téléphone ? ' + (un ? 'Attention : pas encore partagé.' :
+        'Partagé ne veut pas dire arrivé : vérifiez d\'abord qu\'il est bien dans la conversation Claude (ou dans Drive).');
+      confirm.hidden = false;
+    }}, 'Supprimer'));
   if (!blob) btns.querySelectorAll('button[data-act=play], button[data-act=send]').forEach((b) => { b.disabled = true; });
   card.append(btns, audio, out);
-  const un = unsentOf(r).length;
-  confirm.append(h('p', {}, 'Supprimer ' + r.name + ' définitivement de ce téléphone ?' + (un ? ' Attention : pas encore envoyé.' : '')),
+  const confirmText = h('p', {});
+  confirm.append(confirmText,
     h('div', {class: 'row2'},
       h('button', {class: 'mid danger-btn', 'data-act': 'delyes', onclick: async () => { await store.recDelete(r.name); renderList(); }}, 'Oui, supprimer'),
       h('button', {class: 'mid', 'data-act': 'delno', onclick: () => { confirm.hidden = true; }}, 'Annuler')));
   card.append(confirm);
   if (r.kind === 'NE') {
-    const ta = h('textarea', {rows: '4', lang: 'de', 'data-act': 'ref', placeholder: 'Le texte final que vous signeriez, tapé en écoutant. Sans nom de patient.'});
+    const ta = h('textarea', {rows: '4', lang: 'de', 'data-act': 'ref', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', autocomplete: 'off',
+                              placeholder: 'Le texte final que vous signeriez, tapé en écoutant. Sans nom de patient.'});
     ta.value = r.ref || '';
     const chk = h('input', {type: 'checkbox', 'data-act': 'origin'}); chk.checked = r.refOrigin === 'corrige_sortie_radgent';
     const saved = h('span', {class: 'saved', 'aria-live': 'polite'});
+    const memOnly = () => !!(r.memOnly || !store.ok);
+    const notKept = 'Texte NON gardé sur le téléphone (stockage refusé) : copiez-le ailleurs (Notes, e-mail) avant de fermer la page.';
     const save = async () => {
       clearTimeout(refTimers[r.name]);
       const patch = {ref: ta.value, refOrigin: chk.checked ? 'corrige_sortie_radgent' : ''};
-      try { await store.recPatch(r.name, patch); saved.textContent = 'Texte gardé sur le téléphone.'; } catch (e) { saved.textContent = 'Texte NON gardé (stockage refusé).'; }
+      let kept = !memOnly();
+      try { await store.recPatch(r.name, patch); } catch (e) { kept = false; }
       await refreshCards();
+      const now = state.recs.find((x) => x.name === r.name), txt = now ? filesMeta(now).find((f) => f.type === 'text/plain') : null;
+      saved.classList.toggle('bad', !kept);
+      saved.textContent = !kept ? notKept : ('Texte gardé sur le téléphone.' + (txt && txt.newVersion ?
+        ' Déjà partagé avant : le prochain envoi sera la NOUVELLE VERSION ' + txt.version + ' (gardez seulement la plus récente).' : ''));
     };
     ta.addEventListener('input', () => { saved.textContent = ''; clearTimeout(refTimers[r.name]); refTimers[r.name] = setTimeout(save, 600); });
     ta.addEventListener('blur', save); chk.addEventListener('change', save);
     card.append(h('label', {class: 'field'}, 'Texte de référence (facultatif)', ta),
+      h('p', {class: 'hint kbd'}, 'Clavier : la correction automatique ne doit changer aucun mot allemand. Relisez avant d\'envoyer.'),
+      memOnly() ? h('p', {class: 'banner danger', 'data-act': 'refwarn'}, notKept) : null,
       h('label', {class: 'chk'}, chk, 'Corrigé depuis une sortie de RadGent (pas écrit depuis l\'audio)'), saved);
   }
   return card;
 }
 
 // ------------------------------------------------------------------------------------------------ récupération après interruption
-$('#recover-no').addEventListener('click', () => { $('#recover-confirm').hidden = false; });
-$('#recover-keep').addEventListener('click', () => { $('#recover-confirm').hidden = true; });
-$('#recover-del').addEventListener('click', async () => { if (state.partial) await store.partialDrop(state.partial.session); state.partial = null; refreshHome(); });
-$('#recover-yes').addEventListener('click', async () => {
-  const p = state.partial; if (!p || cur) return;
-  $('#recover-yes').disabled = true;
-  try {
+// Un enregistrement coupé (page fermée, téléphone éteint, plantage) est récupéré automatiquement jusqu'à la dernière
+// sauvegarde de sécurité, pour qu'aucune prise ne soit perdue. Le verrou REC_LOCK empêche de toucher un enregistrement
+// encore en cours dans un autre onglet ; sans Web Locks, une sauvegarde de moins de 30 s est laissée tranquille.
+let recovering = null;
+function recoverPartial() {
+  if (!recovering) recovering = recoverOnce().finally(() => { recovering = null; });
+  return recovering;
+}
+async function recoverOnce() {
+  if (cur || !store.ok) return null;
+  const run = async (checkAge) => {
+    const p = await store.partialGet();
+    if (!p || (checkAge && p.updatedAt && Date.now() - p.updatedAt < T.staleMs)) return null;
     const parts = await store.chunksGet(p.session);
     let bytes = 0; for (const b of parts) bytes += b.size;
-    const frames = Math.floor(bytes / 2), blob = new Blob([wavHeader(frames, OUT_RATE), ...parts], {type: 'audio/wav'});
-    await loadRecs(); state.partial = null;
-    const t = takenNames(); let name = p.name; if (t.has(name)) { let i = 2; while (t.has(p.name + '_r' + i)) i++; name = p.name + '_r' + i; }
-    const audio = Object.assign({}, p.audio || {}, {frames, duration_s: round3(frames / OUT_RATE)});
-    const rec = {name, kind: p.kind, created: p.startedAt, duration_s: audio.duration_s, frames, bytes: blob.size, sent: {}, interrupted: true,
-                 info: {capture: audio.capture, resampler: audio.resampler, interruptions: p.interruptions}};
-    if (p.kind === 'NE') { rec.ref = ''; rec.refOrigin = ''; rec.stop_reason = 'interrompu (page fermée), récupéré'; }
+    let frames = Math.floor(bytes / 2);
+    if (p.kind === 'NE') frames = Math.min(frames, Math.floor(T.limitAt * OUT_RATE));   // jamais plus de 480,0 s
+    const dur = round3(frames / OUT_RATE);
+    if (!frames) { await store.partialDrop(p.session); return null; }
+    const blob = new Blob([wavHeader(frames, OUT_RATE), new Blob(parts).slice(0, frames * 2)], {type: 'audio/wav'});
+    await loadRecs();
+    const t = takenNames(); let name = p.name;
+    if (t.has(name)) { let i = 2; while (t.has(p.name + '_r' + i)) i++; name = p.name + '_r' + i; }
+    const audio = Object.assign({}, p.audio || {}, {frames, duration_s: dur});
+    const why = 'interrompu (page fermée ou téléphone éteint), récupéré jusqu\'à la dernière sauvegarde';
+    const rec = {name, kind: p.kind, created: p.startedAt, duration_s: dur, frames, bytes: blob.size, sent: {}, interrupted: true, stop_reason: why,
+                 info: {capture: audio.capture, resampler: audio.resampler, interruptions: p.interruptions, pauses: p.pauses || [], device: p.device,
+                        page_version: p.page_version || null}};
+    if (p.kind === 'NE') { rec.ref = ''; rec.refOrigin = ''; rec.json = JSON.stringify(neMetaDoc(rec, {audio}), null, 1); }
     else {
+      const shown = (p.sentences || []).filter((x) => x.start_s < dur), errs = (p.reading_errors || []).filter((x) => x.at_s < dur);
       rec.complete = false;
       rec.json = JSON.stringify({format: 'radgent-w1-lecture/1', file: name + '.wav', voice: p.voice, day: p.day, block: p.block,
-        source: PH ? PH.source : null, source_sha256: PH ? PH.source_sha256 : null, page_version: PAGE_VERSION,
-        created_utc: p.startedAt, complete: false, recovered: true, n_planned: p.n_planned, n_shown: (p.sentences || []).length,
+        source: PH ? PH.source : null, source_sha256: PH ? PH.source_sha256 : null, page_version: p.page_version || PAGE_VERSION,
+        created_utc: p.startedAt, complete: false, recovered: true, n_planned: p.n_planned, n_shown: shown.length,
+        n_shown_after_audio_end: (p.sentences || []).length - shown.length,
         clock: 'start_s et at_s : secondes depuis le premier échantillon du fichier (horloge du contexte audio)',
-        sentences: p.sentences || [], reading_errors: p.reading_errors || [], interruptions: p.interruptions || [],
-        stop_reason: 'interrompu (page fermée), récupéré', audio, device: p.device || deviceInfo()}, null, 1);
+        sentences: shown, reading_errors: errs, interruptions: p.interruptions || [], pauses: p.pauses || [], stop_reason: why, audio, device: p.device || deviceInfo()}, null, 1);
     }
-    const ok = await store.saveRecording(rec, blob, p.session);
-    if (!ok) storageBanner();
-  } catch (e) { storageBanner('Récupération impossible : ' + ((e && e.name) || e)); }
-  $('#recover-yes').disabled = false;
-  go('list');
-});
+    await store.saveRecording(rec, blob, p.session);
+    if (p.kind === 'NE') await neMarkUsed(p.name);     // une prise récupérée fait aussi avancer le numéro
+    return rec;
+  };
+  try {
+    if (navigator.locks && navigator.locks.request) {
+      let out = null;
+      await navigator.locks.request(REC_LOCK, {ifAvailable: true}, async (lock) => { if (lock) out = await run(false); });
+      return out;
+    }
+    return await run(true);
+  } catch (e) { storageBanner('Récupération d\'un enregistrement interrompu impossible : ' + ((e && e.name) || e)); return null; }
+}
+$('#recover-see').addEventListener('click', () => { $('#recover').hidden = true; go('list'); });
 
 // ------------------------------------------------------------------------------------------------ démarrage
-window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, T, state: () => state};
+window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, w1Fit, T, state: () => state, cur: () => cur};
 (async function boot() {
   try { history.replaceState({s: 'home'}, ''); } catch (e) { /* facultatif */ }
   await store.open();
