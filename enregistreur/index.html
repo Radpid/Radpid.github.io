@@ -15,7 +15,7 @@
   Enregistreur RadGent : page unique, sans réseau (aucun CDN, aucune police, aucun fetch, aucune statistique).
   Source de vérité : radgent-cloud/tools/enregistreur/index.html ; copie identique : radpid.github.io/enregistreur/.
   Les phrases W1 sont insérées par tools/enregistreur/build_sentences.py depuis LISTE_A_LIRE.md (jamais à la main).
-  Mots isolés (MI) : 20 mots fixes, une prise par mot, deux fichiers par série (MI1.wav + MI1.json) ; liste dans le code ci-dessous.
+  Mots isolés (MI) : 20 mots fixes, une prise par mot, séries 1 à 3, deux fichiers par série (MI1.wav + MI1.json) ; liste dans le code ci-dessous.
   Audio : micro brut (AudioWorklet, repli ScriptProcessor), rééchantillonné à 16 000 Hz par un filtre sinc-Kaiser
   (anti-repliement), WAV PCM 16 bits mono. Stockage : IndexedDB du téléphone. Envoi : partage du téléphone ou
   téléchargement, toujours déclenché par l'utilisateur.
@@ -64,6 +64,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 .seg button{min-height:60px;border-radius:12px;background:var(--btn);font-size:19px;font-weight:600;border:2px solid transparent}
 .seg button small{display:block;font-size:14px;font-weight:400;opacity:.85}
 .seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg)}
+.seg.seg3{grid-template-columns:1fr 1fr 1fr}
 .rules{padding-left:22px;margin:10px 0}
 .rules li{margin:6px 0}
 .file{font-size:17px}
@@ -226,7 +227,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
   <section id="s-mi" class="screen" hidden>
     <h2>Mots isolés</h2>
     <div class="field">Série</div>
-    <div class="seg" id="mi-series"><button type="button" data-v="1" aria-pressed="true">Série 1</button><button type="button" data-v="2" aria-pressed="false">Série 2</button></div>
+    <div class="seg seg3" id="mi-series"><button type="button" data-v="1" aria-pressed="true">Série 1</button><button type="button" data-v="2" aria-pressed="false">Série 2</button><button type="button" data-v="3" aria-pressed="false">Série 3</button></div>
     <p class="file">Fichiers : <b id="mi-file">MI1.wav</b> + <b id="mi-file2">MI1.json</b></p>
     <p id="mi-note" class="banner warn" hidden></p>
     <ul class="rules">
@@ -289,7 +290,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 <script>
 'use strict';
 (function () {
-const PAGE_VERSION = '2026-10-08.3';
+const PAGE_VERSION = '2026-10-08.4';
 const OUT_RATE = 16000;
 const REC_LOCK = 'radgent-enregistreur-en-cours';
 // Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
