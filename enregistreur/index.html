@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; media-src blob: data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1114" media="(prefers-color-scheme: dark)">
+<title>Enregistreur RadGent</title>
+<link rel="icon" href="data:,">
+<!--
+  Enregistreur RadGent : page unique, sans réseau (aucun CDN, aucune police, aucun fetch, aucune statistique).
+  Source de vérité : radgent-cloud/tools/enregistreur/index.html ; copie identique : radpid.github.io/enregistreur/.
+  Les phrases W1 sont insérées par tools/enregistreur/build_sentences.py depuis LISTE_A_LIRE.md (jamais à la main).
+  Audio : micro brut (AudioWorklet, repli ScriptProcessor), rééchantillonné à 16 000 Hz par un filtre sinc-Kaiser
+  (anti-repliement), WAV PCM 16 bits mono. Stockage : IndexedDB du téléphone. Envoi : partage du téléphone ou
+  téléchargement, toujours déclenché par l'utilisateur.
+-->
+<style>
+:root{--bg:#f4f5f7;--fg:#15181c;--muted:#56606b;--card:#ffffff;--line:#d3d9e0;--accent:#1450c8;--accent-fg:#ffffff;
+--rec:#c41e2a;--rec-fg:#ffffff;--ok:#146c43;--warn-bg:#fff1c2;--warn-fg:#4d3900;--danger-bg:#fde4e7;--danger-fg:#86101c;
+--btn:#e4e8ee;--btn-fg:#15181c;--meter:#1d9a55;--meter-bg:#d9dee5}
+@media (prefers-color-scheme: dark){:root{--bg:#0f1114;--fg:#eceff3;--muted:#a3adb8;--card:#1a1d22;--line:#30363e;
+--accent:#6e9bff;--accent-fg:#08101f;--rec:#ff5c63;--rec-fg:#1d0306;--ok:#58c995;--warn-bg:#3a2f0b;--warn-fg:#ffe28f;
+--danger-bg:#3d1217;--danger-fg:#ffb8be;--btn:#272c33;--btn-fg:#eceff3;--meter:#58c995;--meter-bg:#2a3038}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;min-height:64px;padding:4px 16px;padding-top:max(4px,env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
+.top .ttl{font-weight:650;font-size:18px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{max-width:540px;margin:0 auto;padding:12px 16px 32px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+h1{font-size:27px;line-height:1.2;margin:10px 0 6px}
+h2{font-size:23px;line-height:1.2;margin:8px 0 10px}
+h3{font-size:17px;margin:22px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+p{margin:8px 0}
+button,.btn{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;text-decoration:none}
+.big{display:block;width:100%;min-height:64px;margin:12px 0;padding:12px 16px;border-radius:14px;background:var(--btn);color:var(--btn-fg);font-size:21px;font-weight:650;text-align:center;line-height:1.25}
+.big small{display:block;font-size:15px;font-weight:400;opacity:.85;margin-top:2px}
+.mid{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:8px 14px;border-radius:12px;background:var(--btn);color:var(--btn-fg);font-size:18px;font-weight:600;text-align:center}
+.primary{background:var(--accent);color:var(--accent-fg)}
+.rec{background:var(--rec);color:var(--rec-fg)}
+.danger-btn{background:var(--rec);color:var(--rec-fg)}
+.link{display:block;width:100%;min-height:56px;background:none;color:var(--muted);text-decoration:underline;font-size:17px;padding:8px}
+button:disabled{opacity:.45;cursor:default}
+.back{min-height:56px;min-width:56px;padding:6px 10px;border-radius:10px;background:var(--btn);font-size:17px;font-weight:600}
+.lead{color:var(--muted)}
+.hint{color:var(--muted);font-size:16px}
+.foot{color:var(--muted);font-size:15px;margin-top:24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:12px 0}
+.warn{background:var(--warn-bg);color:var(--warn-fg);border-color:transparent}
+.danger{background:var(--danger-bg);color:var(--danger-fg);border-color:transparent}
+.banner{border-radius:12px;padding:12px 14px;margin:10px 0;font-size:17px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.field{display:block;margin:14px 0 4px;font-weight:600}
+input[type=text],input[type=number],textarea{display:block;width:100%;margin-top:6px;font:inherit;font-size:19px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);min-height:56px}
+textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.seg button{min-height:60px;border-radius:12px;background:var(--btn);font-size:19px;font-weight:600;border:2px solid transparent}
+.seg button small{display:block;font-size:14px;font-weight:400;opacity:.85}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg)}
+.rules{padding-left:22px;margin:10px 0}
+.rules li{margin:6px 0}
+.file{font-size:17px}
+.recbar{display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums;font-size:22px;font-weight:650;margin:6px 0}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--rec);flex:none;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.meter{flex:1;height:14px;border-radius:7px;background:var(--meter-bg);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--meter);transition:width .08s linear}
+.meter i.clip{background:var(--rec)}
+.prog{display:flex;justify-content:space-between;color:var(--muted);font-size:17px;margin-top:8px}
+.progbar{height:6px;border-radius:3px;background:var(--meter-bg);overflow:hidden;margin:6px 0 4px}
+.progbar i{display:block;height:100%;width:0;background:var(--accent)}
+.sentence{font-size:32px;line-height:1.32;font-weight:600;min-height:34vh;margin:18px 0 10px;overflow-wrap:normal;word-break:normal;-webkit-hyphens:manual;hyphens:manual}
+.toast{min-height:26px;color:var(--ok);font-weight:600;font-size:17px;margin:4px 0}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.slot b{font-size:44px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.item .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.item .nm{font-size:20px;font-weight:700;word-break:break-all}
+.item .meta{color:var(--muted);font-size:15px;margin:2px 0 8px}
+.item audio{width:100%;margin:8px 0}
+.badge{font-size:14px;font-weight:650;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.badge.sent{background:transparent;color:var(--ok);border:1px solid var(--ok)}
+.badge.unsent{background:var(--warn-bg);color:var(--warn-fg)}
+.chk{display:flex;gap:10px;align-items:center;min-height:48px;font-size:16px;color:var(--muted)}
+.chk input{width:24px;height:24px;flex:none}
+.saved{font-size:14px;color:var(--ok);min-height:20px;display:block}
+.dl{display:flex;width:100%;margin:8px 0;word-break:break-all}
+.dl.done{opacity:.6}
+.stack > *{margin:8px 0}
+.err h3{color:inherit;text-transform:none;letter-spacing:0;font-size:19px;margin:0 0 6px}
+.err ol{padding-left:20px;margin:6px 0}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="back" id="back" hidden aria-label="Retour">&lsaquo; Retour</button>
+  <span class="ttl" id="ttl">Enregistreur RadGent</span>
+</header>
+<main>
+  <div id="storage-banner" class="banner danger" hidden></div>
+
+  <!-- ============================================================== ACCUEIL -->
+  <section id="s-home" class="screen">
+    <h1>Enregistreur RadGent</h1>
+    <p class="lead">Les enregistrements restent sur ce téléphone jusqu'à ce que vous les envoyiez.</p>
+    <div id="recover" class="card warn" hidden>
+      <p id="recover-text"></p>
+      <button class="big primary" id="recover-yes">Récupérer</button>
+      <button class="link" id="recover-no">Effacer cet enregistrement interrompu</button>
+      <div id="recover-confirm" class="card danger" hidden>
+        <p>Effacer définitivement cet enregistrement interrompu ?</p>
+        <div class="row2"><button class="mid danger-btn" id="recover-del">Oui, effacer</button><button class="mid" id="recover-keep">Non</button></div>
+      </div>
+    </div>
+    <button class="big primary" id="go-w1">Liste à lire (test W1)<small>phrases à lire, 2 blocs, 2 jours</small></button>
+    <button class="big primary" id="go-ne">Jeu neuf : dictées libres<small>NE001, NE002… sans texte à lire</small></button>
+    <button class="big" id="go-list">Mes enregistrements<small id="home-count">&nbsp;</small></button>
+    <p class="foot">Les fichiers sont gardés dans ce navigateur (pas dans Photos ni dans Fichiers). La page n'envoie rien d'elle-même : c'est vous qui envoyez, avec « Envoyer ». <span id="version"></span></p>
+  </section>
+
+  <!-- ============================================================== W1 : réglages -->
+  <section id="s-w1setup" class="screen" hidden>
+    <h2>Liste à lire (test W1)</h2>
+    <label class="field" for="w1-voice">Voix</label>
+    <input type="text" id="w1-voice" value="moi" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <p class="hint">« moi », ou le prénom d'un ou une collègue.</p>
+    <div class="field">Jour</div>
+    <div class="seg" id="w1-day"><button type="button" data-v="1" aria-pressed="true">Jour 1</button><button type="button" data-v="2" aria-pressed="false">Jour 2</button></div>
+    <div class="field">Bloc</div>
+    <div class="seg" id="w1-block"><button type="button" data-v="A" aria-pressed="true">Bloc A<small>60 termes</small></button><button type="button" data-v="B" aria-pressed="false">Bloc B<small>60 paires</small></button></div>
+    <p class="file">Fichier : <b id="w1-file">W1_moi_J1_A.wav</b></p>
+    <p id="w1-note" class="banner warn" hidden></p>
+    <ul class="rules">
+      <li>Même téléphone, même pièce les deux jours. Jour 2 : au moins 24 h après le jour 1.</li>
+      <li>Débit et ton de dictée normaux. Ne sur-articulez pas.</li>
+      <li>Aucune commande parlée (ni « Punkt » ni « Komma ») : juste une courte pause entre deux phrases.</li>
+      <li>Lisez exactement ce qui est écrit, terminaisons comprises. Ne lisez pas le numéro.</li>
+      <li>Erreur de lecture : touchez « Erreur de lecture », puis relisez toute la phrase.</li>
+    </ul>
+    <div id="w1-error"></div>
+    <button class="big rec" id="w1-start">Commencer</button>
+  </section>
+
+  <!-- ============================================================== W1 : lecture -->
+  <section id="s-w1run" class="screen" hidden>
+    <div class="recbar"><span class="dot"></span><span id="w1-time">00:00</span><div class="meter"><i id="w1-meter"></i></div></div>
+    <div id="w1-pause" class="banner warn" hidden></div>
+    <div class="prog"><span id="w1-pos">Préparation du micro…</span><span id="w1-id"></span></div>
+    <div class="progbar"><i id="w1-progbar"></i></div>
+    <p id="w1-sentence" class="sentence" lang="de"></p>
+    <p id="w1-toast" class="toast" aria-live="polite"></p>
+    <button class="big primary" id="w1-next" disabled>Suivant</button>
+    <button class="big" id="w1-err" disabled>Erreur de lecture</button>
+    <button class="link" id="w1-stop">Arrêter ici</button>
+    <div id="w1-stopconfirm" class="card warn" hidden>
+      <p>Arrêter maintenant ? L'enregistrement incomplet sera gardé.</p>
+      <div class="row2"><button class="mid danger-btn" id="w1-stopyes">Arrêter et garder</button><button class="mid" id="w1-stopno">Continuer</button></div>
+    </div>
+  </section>
+
+  <!-- ============================================================== W1 : fini -->
+  <section id="s-w1done" class="screen" hidden>
+    <h2>Enregistré</h2>
+    <p id="w1-done-text"></p>
+    <div id="w1-done-warn"></div>
+    <button class="big primary" id="w1-send">Envoyer maintenant</button>
+    <div id="w1-send-out" class="stack"></div>
+    <button class="big" id="w1-again">Bloc suivant</button>
+    <button class="big" id="w1-tolist">Mes enregistrements</button>
+  </section>
+
+  <!-- ============================================================== Jeu neuf -->
+  <section id="s-ne" class="screen" hidden>
+    <h2>Jeu neuf : dictées libres</h2>
+    <div class="slot"><b id="ne-slot">NE001</b><button class="mid" id="ne-edit">Changer le numéro</button></div>
+    <div id="ne-editbox" hidden>
+      <label class="field" for="ne-num">Numéro de la prochaine dictée</label>
+      <div class="row2"><input type="number" id="ne-num" inputmode="numeric" min="1" max="999"><button class="mid primary" id="ne-numok">OK</button></div>
+    </div>
+    <p class="hint" id="ne-hint">Le numéro suit le dernier utilisé sur ce téléphone. Si des dictées NE existent déjà ailleurs, changez-le.</p>
+    <p id="ne-note" class="banner warn" hidden></p>
+    <ul class="rules" id="ne-rules">
+      <li>Dictez comme au travail, avec vos commandes habituelles. Rien à lire.</li>
+      <li><b>Aucun nom, date de naissance ni numéro de patient.</b> Si un nom est dit : supprimez la prise et recommencez.</li>
+      <li>Variez : CT, IRM, radio, échographie.</li>
+      <li>Gardez toutes les prises, même moyennes. 8 min au plus (alerte à 7 min 30).</li>
+    </ul>
+    <div id="ne-error"></div>
+    <div id="ne-recbar" class="recbar" hidden><span class="dot"></span><span id="ne-time">00:00</span><div class="meter"><i id="ne-meter"></i></div></div>
+    <div id="ne-pause" class="banner warn" hidden></div>
+    <p id="ne-warn" class="banner warn" hidden></p>
+    <div id="ne-ready"><button class="big rec" id="ne-rec">Enregistrer</button></div>
+    <div id="ne-recording" hidden><button class="big primary" id="ne-stop">Arrêter</button></div>
+    <div id="ne-stopped" hidden>
+      <p id="ne-saved" class="card"></p>
+      <button class="big" id="ne-play">Réécouter</button>
+      <button class="big primary" id="ne-keep">Garder</button>
+      <button class="link" id="ne-del">Supprimer cette prise (nom de patient dit, ou panne)</button>
+      <div id="ne-delconfirm" class="card danger" hidden>
+        <p id="ne-deltext"></p>
+        <div class="row2"><button class="mid danger-btn" id="ne-delyes">Oui, supprimer</button><button class="mid" id="ne-delno">Non, garder</button></div>
+      </div>
+      <audio id="ne-audio" preload="none" hidden></audio>
+    </div>
+  </section>
+
+  <!-- ============================================================== Mes enregistrements -->
+  <section id="s-list" class="screen" hidden>
+    <h2>Mes enregistrements</h2>
+    <p id="list-storage" class="hint"></p>
+    <button class="big primary" id="list-sendall">Tout envoyer</button>
+    <div id="list-out" class="stack"></div>
+    <p class="hint">Dans la fenêtre de partage, choisissez Google Drive, puis le dossier « RadGent enregistrements ». Safari peut effacer les données d'un site non ouvert pendant 7 jours : envoyez vite.</p>
+    <div id="list-items"></div>
+  </section>
+</main>
+
+<script id="phrases-w1" type="application/json"><!-- BEGIN_PHRASES -->{"source":"reports/results/own_recordings/LISTE_A_LIRE.md","source_sha256":"31bf24f13b0d2d7fd7362f79c498978c335aad1c2fac96f4a32d61d8af7f6c43","blocks":{"A":[{"id":"A01","label":"Lungenarterienembolie","J1":"Kein Nachweis einer Lungenarterienembolie.","J2":"Die Lungenarterienembolie reicht bis in die Segmentarterien."},{"id":"A02","label":"Pleuraerguss","J1":"Es zeigt sich ein schmaler Pleuraerguss.","J2":"Der Pleuraerguss ist im Verlauf regredient."},{"id":"A03","label":"Pneumothorax","J1":"Kein Pneumothorax nach der Punktion.","J2":"Der Pneumothorax ist nach Drainage nicht mehr nachweisbar."},{"id":"A04","label":"Atelektase","J1":"Basal besteht eine streifige Atelektase.","J2":"Die Atelektase im Mittellappen ist unverändert."},{"id":"A05","label":"Bronchiektasen","J1":"Im Unterlappen finden sich zylindrische Bronchiektasen.","J2":"Bronchiektasen ohne Schleimverlegung."},{"id":"A06","label":"Konsolidierung","J1":"Keine pneumonische Konsolidierung.","J2":"Die Konsolidierung im Oberlappen ist rückläufig."},{"id":"A07","label":"Milchglastrübung","J1":"Peripher zeigt sich eine zarte Milchglastrübung.","J2":"Die Milchglastrübung ist im Verlauf neu aufgetreten."},{"id":"A08","label":"Lymphadenopathie","J1":"Keine mediastinale Lymphadenopathie.","J2":"Die Lymphadenopathie hilär ist grössenstabil."},{"id":"A09","label":"Perikarderguss","J1":"Kein relevanter Perikarderguss.","J2":"Der Perikarderguss ist zirkulär und schmal."},{"id":"A10","label":"Aortendissektion","J1":"Kein Anhalt für eine Aortendissektion.","J2":"Die Aortendissektion beginnt distal der Subclavia."},{"id":"A11","label":"Aortenaneurysma","J1":"Infrarenal besteht ein Aortenaneurysma.","J2":"Das Aortenaneurysma ist teilthrombosiert."},{"id":"A12","label":"Mediastinum","J1":"Das Mediastinum ist mittelständig.","J2":"Im vorderen Mediastinum keine Auffälligkeiten."},{"id":"A13","label":"Zwerchfellhochstand","J1":"Rechtsseitiger Zwerchfellhochstand.","J2":"Der Zwerchfellhochstand ist unverändert."},{"id":"A14","label":"Kardiomegalie","J1":"Es besteht eine Kardiomegalie.","J2":"Keine Kardiomegalie, keine Stauungszeichen."},{"id":"A15","label":"Lungenrundherd","J1":"Ein solitärer Lungenrundherd im Oberlappen.","J2":"Der Lungenrundherd ist seit zwei Jahren grössenkonstant."},{"id":"A16","label":"Hepatomegalie","J1":"Es besteht eine Hepatomegalie.","J2":"Die Hepatomegalie ist bei Steatose bekannt."},{"id":"A17","label":"Splenomegalie","J1":"Keine Splenomegalie.","J2":"Die Splenomegalie ist im Verlauf zunehmend."},{"id":"A18","label":"Cholezystolithiasis","J1":"Es besteht eine Cholezystolithiasis ohne Cholezystitis.","J2":"Bekannte Cholezystolithiasis mit mehreren Konkrementen."},{"id":"A19","label":"Choledocholithiasis","J1":"Kein Nachweis einer Choledocholithiasis.","J2":"Die Choledocholithiasis führt zu einer Gangerweiterung."},{"id":"A20","label":"Pankreatitis","J1":"Zeichen einer ödematösen Pankreatitis.","J2":"Keine Pankreatitis, das Organ ist schlank."},{"id":"A21","label":"Divertikulitis","J1":"Unkomplizierte Divertikulitis im Sigma.","J2":"Die Divertikulitis zeigt keine Abszedierung."},{"id":"A22","label":"Appendizitis","J1":"Bild vereinbar mit einer Appendizitis.","J2":"Die Appendizitis ist ohne Perforation."},{"id":"A23","label":"Hydronephrose","J1":"Keine Hydronephrose.","J2":"Die Hydronephrose ist mittelgradig."},{"id":"A24","label":"Nephrolithiasis","J1":"Beidseitige Nephrolithiasis ohne Stau.","J2":"Die Nephrolithiasis ist unverändert."},{"id":"A25","label":"Pyelonephritis","J1":"Keilförmige Areale passend zu einer Pyelonephritis.","J2":"Die Pyelonephritis zeigt keine Einschmelzung."},{"id":"A26","label":"Nierenbeckenkelchsystem","J1":"Das Nierenbeckenkelchsystem ist nicht gestaut.","J2":"Kontrastmittel im Nierenbeckenkelchsystem."},{"id":"A27","label":"Aszites","J1":"Kein Aszites.","J2":"Der Aszites ist perihepatisch betont."},{"id":"A28","label":"Pneumoperitoneum","J1":"Kein Pneumoperitoneum.","J2":"Das Pneumoperitoneum ist postoperativ erklärbar."},{"id":"A29","label":"Invagination","J1":"Kein Hinweis auf eine Invagination.","J2":"Die Invagination liegt im rechten Unterbauch."},{"id":"A30","label":"Leberzirrhose","J1":"Morphologie einer Leberzirrhose.","J2":"Die Leberzirrhose zeigt eine knotige Oberfläche."},{"id":"A31","label":"Gallenblasenpolyp","J1":"Ein Gallenblasenpolyp ohne Wachstum.","J2":"Der Gallenblasenpolyp ist grössenkonstant."},{"id":"A32","label":"Raumforderung","J1":"Keine Raumforderung im Pankreaskopf.","J2":"Die Raumforderung ist randständig kontrastiert."},{"id":"A33","label":"Kontrastmittelanreicherung","J1":"Keine pathologische Kontrastmittelanreicherung.","J2":"Die Kontrastmittelanreicherung ist ringförmig."},{"id":"A34","label":"Kontrastmittelextravasation","J1":"Kein Nachweis einer Kontrastmittelextravasation.","J2":"Die Kontrastmittelextravasation spricht für eine aktive Blutung."},{"id":"A35","label":"Diffusionsrestriktion","J1":"Keine Diffusionsrestriktion.","J2":"Die Diffusionsrestriktion ist kortikal betont."},{"id":"A36","label":"Subarachnoidalblutung","J1":"Kein Hinweis auf eine Subarachnoidalblutung.","J2":"Die Subarachnoidalblutung betrifft die basalen Zisternen."},{"id":"A37","label":"Subduralhämatom","J1":"Schmales Subduralhämatom frontal.","J2":"Das Subduralhämatom ist chronisch."},{"id":"A38","label":"Hydrozephalus","J1":"Kein Hydrozephalus.","J2":"Der Hydrozephalus ist kommunizierend."},{"id":"A39","label":"Mikroangiopathie","J1":"Zeichen einer Mikroangiopathie.","J2":"Die Mikroangiopathie ist altersentsprechend."},{"id":"A40","label":"Meningeom","J1":"Ein Meningeom an der Falx.","J2":"Das Meningeom ist verkalkt."},{"id":"A41","label":"Glioblastom","J1":"Bild verdächtig auf ein Glioblastom.","J2":"Das Glioblastom zeigt eine ausgedehnte Nekrose."},{"id":"A42","label":"Spondylodiszitis","J1":"Kein Anhalt für eine Spondylodiszitis.","J2":"Die Spondylodiszitis greift auf den Psoas über."},{"id":"A43","label":"Spinalkanalstenose","J1":"Relative Spinalkanalstenose lumbal.","J2":"Die Spinalkanalstenose ist hochgradig."},{"id":"A44","label":"Neuroforamenstenose","J1":"Keine Neuroforamenstenose.","J2":"Die Neuroforamenstenose ist ossär bedingt."},{"id":"A45","label":"Bandscheibenprotrusion","J1":"Breitbasige Bandscheibenprotrusion.","J2":"Die Bandscheibenprotrusion tangiert die Nervenwurzel."},{"id":"A46","label":"Osteochondrose","J1":"Ausgeprägte Osteochondrose zervikal.","J2":"Die Osteochondrose ist erosiv."},{"id":"A47","label":"Spondylolisthesis","J1":"Keine Spondylolisthesis.","J2":"Die Spondylolisthesis ist degenerativ."},{"id":"A48","label":"Knochenmarködem","J1":"Kein Knochenmarködem.","J2":"Das Knochenmarködem ist subchondral."},{"id":"A49","label":"Klavikulafraktur","J1":"Dislozierte Klavikulafraktur.","J2":"Die Klavikulafraktur ist konsolidiert."},{"id":"A50","label":"Akromioklavikulargelenk","J1":"Das Akromioklavikulargelenk ist arthrotisch.","J2":"Kapselverdickung am Akromioklavikulargelenk."},{"id":"A51","label":"Rotatorenmanschette","J1":"Die Rotatorenmanschette ist vollständig erhalten.","J2":"Partialruptur der Rotatorenmanschette."},{"id":"A52","label":"Supraspinatussehne","J1":"Tendinose der Supraspinatussehne.","J2":"Die Supraspinatussehne ist ausgedünnt."},{"id":"A53","label":"Meniskusläsion","J1":"Keine Meniskusläsion.","J2":"Die Meniskusläsion reicht bis an die Oberfläche."},{"id":"A54","label":"Kreuzbandruptur","J1":"Kein Hinweis auf eine Kreuzbandruptur.","J2":"Die Kreuzbandruptur ist komplett."},{"id":"A55","label":"Chondromalazie","J1":"Chondromalazie retropatellar.","J2":"Die Chondromalazie ist fortgeschritten."},{"id":"A56","label":"Gonarthrose","J1":"Mässige Gonarthrose medial.","J2":"Die Gonarthrose ist aktiviert."},{"id":"A57","label":"Koxarthrose","J1":"Beginnende Koxarthrose.","J2":"Die Koxarthrose ist fortgeschritten."},{"id":"A58","label":"Osteolyse","J1":"Keine Osteolyse.","J2":"Die Osteolyse im Beckenkamm ist neu."},{"id":"A59","label":"Osteosynthesematerial","J1":"Das Osteosynthesematerial liegt korrekt.","J2":"Kein Materialbruch am Osteosynthesematerial."},{"id":"A60","label":"Pfortaderthrombose","J1":"Keine Pfortaderthrombose.","J2":"Die Pfortaderthrombose ist partiell."}],"B":[{"id":"B01","label":"kleine / kleiner","J1":"Eine kleine Verkalkung und ein kleiner Polyp.","J2":"Ein kleiner Schatten apikal, eine kleine Einziehung basal."},{"id":"B02","label":"regelrecht / regelrechte","J1":"Regelrechte Weite der Ventrikel, die Mittellinie ist regelrecht.","J2":"Die Gelenkstellung ist regelrecht, regelrechte Darstellung der Bänder."},{"id":"B03","label":"akute / akuten","J1":"Keine akute Blutung, kein Hinweis auf einen akuten Verschluss.","J2":"Keine akute Ischämie, kein Zeichen einer akuten Entzündung."},{"id":"B04","label":"geringe / geringer","J1":"Geringe Flüssigkeit perihepatisch, geringer Luftgehalt im Kolon.","J2":"Geringer Reizzustand und geringe Schwellung der Weichteile."},{"id":"B05","label":"frische / frischen","J1":"Keine frische Blutung, kein Hinweis auf einen frischen Thrombus.","J2":"Frische Einblutung ohne Zeichen einer frischen Ischämie."},{"id":"B06","label":"freie / freien","J1":"Keine freie Luft, kein Nachweis von freien Gasansammlungen.","J2":"Freie Flüssigkeit im Becken, kein Anhalt für einen freien Gelenkkörper."},{"id":"B07","label":"fokale / fokalen","J1":"Keine fokale Verdichtung, kein Nachweis einer fokalen Anreicherung.","J2":"Eine fokale Ausdünnung mit fokalen Signalanhebungen."},{"id":"B08","label":"unauffällig / unauffälliger","J1":"Die Milz ist unauffällig, unauffälliger Pankreaskopf.","J2":"Unauffälliger Aspekt der Nebennieren, die Schilddrüse ist unauffällig."},{"id":"B09","label":"vergrössert / vergrösserte","J1":"Die Leber ist vergrössert, vergrösserte Lymphknoten liegen nicht vor.","J2":"Vergrösserte Schilddrüse, der linke Lappen ist deutlich vergrössert."},{"id":"B10","label":"zentrale / zentralen","J1":"Zentrale Einschmelzung mit Verdickung der zentralen Septen.","J2":"Keine zentrale Nekrose, die zentralen Atemwege sind frei."},{"id":"B11","label":"deutliche / deutlichen","J1":"Deutliche Wandverdickung mit deutlichen Umgebungsreaktionen.","J2":"Eine deutliche Befundbesserung mit deutlichen Restveränderungen."},{"id":"B12","label":"diffuse / diffusen","J1":"Diffuse Verfettung mit diffusen Dichteminderungen.","J2":"Keine diffuse Erkrankung, kein Hinweis auf einen diffusen Befall."},{"id":"B13","label":"knöcherne / knöchernen","J1":"Keine knöcherne Destruktion der knöchernen Thoraxwand.","J2":"Die knöchernen Anteile sind erhalten, die knöcherne Begrenzung ist scharf."},{"id":"B14","label":"ältere / älteren","J1":"Eine ältere Einblutung und Reste einer älteren Operation.","J2":"Im Vergleich zu älteren Aufnahmen ist die ältere Veränderung konstant."},{"id":"B15","label":"Erguss / Ergüsse","J1":"Kein Erguss im Gelenk, frühere Ergüsse sind resorbiert.","J2":"Beidseitige Ergüsse, links ist der Erguss grösser."},{"id":"B16","label":"Zyste / Zysten","J1":"Eine Zyste im Oberpol, weitere Zysten im Unterpol.","J2":"Multiple Zysten in der Leber, die grösste Zyste misst zwei Zentimeter."},{"id":"B17","label":"Läsion / Läsionen","J1":"Eine Läsion im Segment vier, keine weiteren Läsionen.","J2":"Mehrere Läsionen im Marklager, eine Läsion ist neu."},{"id":"B18","label":"Metastase / Metastasen","J1":"Eine solitäre Metastase, keine weiteren Metastasen.","J2":"Neue Metastasen in der Leber, die Metastase im Knochen ist sklerosiert."},{"id":"B19","label":"Herd / Herde","J1":"Ein Herd im Oberlappen, keine weiteren Herde.","J2":"Zwei Herde subpleural, der grössere Herd ist verkalkt."},{"id":"B20","label":"Befund / Befunde","J1":"Der Befund ist rückläufig, die Befunde der Voruntersuchung liegen vor.","J2":"Externe Befunde liegen nicht vor, der Befund bleibt unklar."},{"id":"B21","label":"Rippe / Rippen","J1":"Eine Rippe ist eingebrochen, die übrigen Rippen sind regelhaft.","J2":"Mehrere Rippen mit Kallus, eine Rippe ist disloziert."},{"id":"B22","label":"Wirbelkörper / Wirbelkörpers","J1":"Der Wirbelkörper ist höhengemindert, die Deckplatte des Wirbelkörpers ist eingebrochen.","J2":"Ödem im Bereich des Wirbelkörpers, der Wirbelkörper ist nicht frakturiert."},{"id":"B23","label":"Niere / Nieren","J1":"Die linke Niere ist klein, beide Nieren ohne Stau.","J2":"Nieren orthotop, die rechte Niere zeigt eine Einziehung."},{"id":"B24","label":"Gefäss / Gefässe","J1":"Ein Gefäss ist verschlossen, die übrigen Gefässe sind offen.","J2":"Die Gefässe sind zart, kein Gefäss ist verkalkt."},{"id":"B25","label":"Struktur / Strukturen","J1":"Eine tubuläre Struktur, die übrigen Strukturen regelhaft.","J2":"Die ossären Strukturen sind erhalten, die Struktur des Knorpels ist homogen."},{"id":"B26","label":"vorbekannt / vorbekannte","J1":"Die vorbekannte Verkalkung ist unverändert, der Zustand ist vorbekannt.","J2":"Vorbekannte Operation, das Implantat ist vorbekannt."},{"id":"B27","label":"stabil / stabile","J1":"Der Verlauf ist stabil, stabile Verhältnisse im Becken.","J2":"Stabile Grösse der Knoten, die Situation ist stabil."},{"id":"B28","label":"glatt / glatte","J1":"Die Kontur ist glatt, glatte Begrenzung der Leber.","J2":"Glatte Oberfläche, der Übergang ist glatt."},{"id":"B29","label":"intakt / intakte","J1":"Das Band ist intakt, intakte Gelenkkapsel.","J2":"Intakte Kortikalis, der Knorpel ist intakt."},{"id":"B30","label":"erweitert / erweiterte","J1":"Der Gallengang ist erweitert, erweiterte intrahepatische Gallenwege.","J2":"Erweiterte Dünndarmschlingen, das Kolon ist nicht erweitert."},{"id":"B31","label":"Ileus / Ileum","J1":"Kein Ileus, das terminale Ileum ist zart.","J2":"Wandverdickung im Ileum ohne Zeichen eines Ileus."},{"id":"B32","label":"Infarkt / Infekt","J1":"Kein Infarkt, kein Hinweis auf einen Infekt.","J2":"Der Infekt ist abgeklungen, ein alter Infarkt ist bekannt."},{"id":"B33","label":"Hämatom / Hämangiom","J1":"Kein Hämatom, ein Hämangiom in der Leber.","J2":"Das Hämangiom ist typisch, das Hämatom ist resorbiert."},{"id":"B34","label":"Lipom / Lymphom","J1":"Ein Lipom subkutan, kein Lymphom.","J2":"Verdacht auf ein Lymphom, das Lipom ist bekannt."},{"id":"B35","label":"Myom / Myelom","J1":"Ein Myom im Uterus, kein Hinweis auf ein Myelom.","J2":"Das Myelom ist bekannt, das Myom ist verkalkt."},{"id":"B36","label":"Fibrom / Fibrose","J1":"Ein Fibrom im Weichgewebe, keine Fibrose im Unterlappen.","J2":"Die Fibrose ist basal betont, kein Fibrom."},{"id":"B37","label":"Stenose / Sklerose","J1":"Eine Stenose der Arterie und eine Sklerose der Deckplatte.","J2":"Die Sklerose ist degenerativ, keine Stenose der Karotis."},{"id":"B38","label":"Ulkus / Sulkus","J1":"Ein Ulkus im Magen, der Sulkus ist frei.","J2":"Der Sulkus ist verstrichen, kein Ulkus."},{"id":"B39","label":"hyperdens / hypodens","J1":"Das Areal ist hyperdens, die Umgebung ist hypodens.","J2":"Hypodens im Nativscan, nach Kontrastmittel hyperdens."},{"id":"B40","label":"hyperintens / hypointens","J1":"In T2 hyperintens, in T1 hypointens.","J2":"Das Signal ist hypointens, die Randzone ist hyperintens."},{"id":"B41","label":"Fraktur / Fraktion","J1":"Keine Fraktur nach der dritten Fraktion.","J2":"Die Fraktion wurde verschoben, die Fraktur ist konsolidiert."},{"id":"B42","label":"Abszess / Prozess","J1":"Kein Abszess, kein entzündlicher Prozess.","J2":"Der Prozess ist rückläufig, der Abszess ist drainiert."},{"id":"B43","label":"Kontrast / Kontakt","J1":"Nach Kontrast kein Kontakt zur Pleura.","J2":"Breiter Kontakt zur Leber, kein Kontrast im Lumen."},{"id":"B44","label":"Wand / Rand","J1":"Die Wand ist verdickt, der Rand ist unscharf.","J2":"Der Rand ist scharf, die Wand ist zart."},{"id":"B45","label":"Rinde / Rinne","J1":"Die Rinde ist verschmälert, eine Rinne im Knorpel.","J2":"Eine Rinne an der Oberfläche, die Rinde ist erhalten."},{"id":"B46","label":"Darm / Dorn","J1":"Der Darm ist frei, ein Dorn am Fersenbein.","J2":"Ein plantarer Dorn, der Darm ohne Distension."},{"id":"B47","label":"Netz / Nest","J1":"Das Netz ist verdickt, ein Nest von Verkalkungen.","J2":"Ein Nest im Knochen, das grosse Netz ist frei."},{"id":"B48","label":"Sehne / Vene","J1":"Die Sehne ist verdickt, die Vene ist offen.","J2":"Die Vene ist thrombosiert, die Sehne ist erhalten."},{"id":"B49","label":"Stase / Phase","J1":"Venöse Stase in der späten Phase.","J2":"In der arteriellen Phase keine Stase."},{"id":"B50","label":"Erosion / Arrosion","J1":"Keine Erosion der Kortikalis, keine Arrosion der Arterie.","J2":"Die Arrosion ist ausgedehnt, eine Erosion ist nicht sicher."},{"id":"B51","label":"Fistel / Fissur","J1":"Keine Fistel, eine Fissur der Kortikalis.","J2":"Die Fissur ist nicht disloziert, eine Fistel zur Haut."},{"id":"B52","label":"dichte / leichte","J1":"Eine dichte Verschattung und eine leichte Verdickung.","J2":"Eine leichte Schwellung und eine dichte Kalkablagerung."},{"id":"B53","label":"axial / axillär","J1":"Axial rekonstruiert, axillär reizlose Lymphknoten.","J2":"Axillär ein Knoten, axial gut abgrenzbar."},{"id":"B54","label":"Bulla / Bulbus","J1":"Eine Bulla im Apex, der Bulbus ist reizlos.","J2":"Der Bulbus duodeni ist frei, keine Bulla."},{"id":"B55","label":"Septum / Sputum","J1":"Das Septum ist verdickt, kein Sputum im Bronchus.","J2":"Retiniertes Sputum, das Septum ist mittelständig."},{"id":"B56","label":"Narbe / Nabel","J1":"Eine Narbe am Nabel.","J2":"Der Nabel ist reizlos, die Narbe ist verkalkt."},{"id":"B57","label":"Adenom / Atherom","J1":"Ein Adenom der Nebenniere, ein Atherom der Haut.","J2":"Das Atherom ist entzündet, das Adenom ist lipidreich."},{"id":"B58","label":"Karzinom / Karzinoid","J1":"Kein Karzinom, ein Karzinoid im Dünndarm.","J2":"Das Karzinoid ist bekannt, kein Karzinom."},{"id":"B59","label":"Lunge / Zunge","J1":"Die Lunge ist frei, die Zunge ist symmetrisch.","J2":"Die Zunge ist regelhaft, die Lunge ist belüftet."},{"id":"B60","label":"Hoden / Boden","J1":"Der Hoden ist homogen, der Boden der Orbita ist erhalten.","J2":"Der Boden ist eingebrochen, der Hoden ist regelhaft."}]}}<!-- END_PHRASES --></script>
+<script>
+'use strict';
+(function () {
+const PAGE_VERSION = '2026-10-08.1';
+const OUT_RATE = 16000;
+// Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
+const T = Object.assign({warnAt: 450, limitAt: 480, w1Limit: 1200, checkpointEvery: 4, tapGuardMs: 300, noWorklet: false},
+                        (window.__ENREG_TEST__ && typeof window.__ENREG_TEST__ === 'object') ? window.__ENREG_TEST__ : {});
+
+// ------------------------------------------------------------------------------------------------ petits outils
+const $ = (s) => document.querySelector(s);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return e;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const pad2 = (n) => String(n).padStart(2, '0');
+function fmtClock(s) { s = Math.max(0, Math.floor(s)); return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60); }
+function fmtDur(s) { s = Math.round(s); const m = Math.floor(s / 60), r = s % 60; return m ? (m + ' min ' + (r ? r + ' s' : '')).trim() : r + ' s'; }
+function fmtSize(b) { return (b / 1e6).toFixed(b < 1e7 ? 1 : 0).replace('.', ',') + ' Mo'; }
+function fmtDate(iso) { try { return new Date(iso).toLocaleString('fr-CH', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}); } catch (e) { return iso; } }
+function hash(str) { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193); } return (x >>> 0).toString(16); }
+function localIso(d) { const o = -d.getTimezoneOffset(), s = o >= 0 ? '+' : '-', a = Math.abs(o);
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + s + pad2(Math.floor(a / 60)) + ':' + pad2(a % 60); }
+const prefs = {
+  get(k, d) { try { const v = localStorage.getItem('radrec.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('radrec.' + k, JSON.stringify(v)); } catch (e) { /* stockage refusé : sans conséquence */ } },
+};
+function cleanVoice(v) {
+  v = String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20);
+  return v || 'moi';
+}
+function deviceInfo() {
+  const d = {user_agent: navigator.userAgent, platform: navigator.platform || null, language: navigator.language || null,
+             screen: (screen.width + 'x' + screen.height + '@' + (window.devicePixelRatio || 1))};
+  try { if (navigator.userAgentData) d.ua_data = {mobile: navigator.userAgentData.mobile, platform: navigator.userAgentData.platform,
+                                                  brands: navigator.userAgentData.brands.map((b) => b.brand + ' ' + b.version)}; } catch (e) { /* facultatif */ }
+  return d;
+}
+
+// ------------------------------------------------------------------------------------------------ phrases W1
+const PH = (function () {
+  try {
+    const t = document.getElementById('phrases-w1').textContent.replace('<!-- BEGIN_PHRASES -->', '').replace('<!-- END_PHRASES -->', '').trim();
+    const p = JSON.parse(t);
+    return (p && p.blocks && p.blocks.A && p.blocks.B) ? p : null;
+  } catch (e) { return null; }
+})();
+function sentencesFor(block, day) { return PH.blocks[block].map((r) => ({id: r.id, text: r['J' + day]})); }
+
+// ------------------------------------------------------------------------------------------------ rééchantillonnage
+// Filtre passe-bas sinc fenêtré (Kaiser, 80 dB) évalué aux positions exactes : anti-repliement, aucun retard.
+// Passe-bande plat jusqu'à 0,86 x 8 kHz, bande coupée dès 8 kHz (Nyquist de la sortie). Fonctionne pour tout
+// rapport de fréquences (48 000, 44 100, 24 000, 8 000 Hz...).
+function gcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a; }
+function besselI0(x) { let s = 1, t = 1, k = 1; const q = x * x / 4; for (;;) { t *= q / (k * k); s += t; if (t < 1e-12 * s) break; k++; } return s; }
+class Resampler {
+  constructor(inRate, outRate) {
+    this.inRate = Math.round(inRate); this.outRate = Math.round(outRate);
+    const g = gcd(this.inRate, this.outRate);
+    this.L = this.outRate / g; this.M = this.inRate / g; this.pass = this.L === this.M;
+    const nyq = Math.min(this.inRate, this.outRate) / 2;
+    this.fStop = nyq; this.fPass = 0.86 * nyq; this.fc = (this.fPass + this.fStop) / 2;
+    this.A = 80; this.beta = 0.1102 * (this.A - 8.7); this.i0b = besselI0(this.beta);
+    const lenSec = (this.A - 8) / (2.285 * 2 * Math.PI * (this.fStop - this.fPass));
+    this.hw = lenSec / 2 * this.inRate; this.H = Math.ceil(this.hw) + 1; this.nt = 2 * this.H;
+    this.cache = new Map();
+    this.buf = new Float32Array(Math.max(16384, 4 * this.nt)); this.start = -this.H; this.len = this.H;
+    this.inTotal = 0; this.n = 0;
+  }
+  describe() {
+    return this.pass ? 'aucun (déjà 16 000 Hz)' : 'sinc fenêtré Kaiser (80 dB, beta ' + this.beta.toFixed(3) + '), passe-bande 0-' + Math.round(this.fPass) +
+      ' Hz, coupé dès ' + Math.round(this.fStop) + ' Hz, ' + this.nt + ' coefficients, ' + this.inRate + ' -> ' + this.outRate + ' Hz';
+  }
+  table(ph) {
+    let t = this.cache.get(ph); if (t) return t;
+    t = new Float32Array(this.nt); const frac = ph / this.L, g = 2 * this.fc / this.inRate; let sum = 0;
+    for (let j = 0; j < this.nt; j++) {
+      const d = frac + (this.H - 1 - j), u = d / this.hw;
+      if (Math.abs(u) >= 1) continue;
+      const x = g * d, s = x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
+      t[j] = g * s * besselI0(this.beta * Math.sqrt(1 - u * u)) / this.i0b; sum += t[j];
+    }
+    for (let j = 0; j < this.nt; j++) t[j] /= sum;
+    if (this.L <= 4096) this.cache.set(ph, t);
+    return t;
+  }
+  append(x) {
+    if (this.len + x.length > this.buf.length) {
+      const nb = new Float32Array(Math.max(this.buf.length * 2, this.len + x.length + 4096)); nb.set(this.buf.subarray(0, this.len)); this.buf = nb;
+    }
+    this.buf.set(x, this.len); this.len += x.length;
+  }
+  process(x) {
+    this.inTotal += x.length;
+    if (this.pass) return Float32Array.from(x);
+    this.append(x); return this.produce(this.inTotal, Infinity);
+  }
+  flush() {
+    if (this.pass) return new Float32Array(0);
+    this.append(new Float32Array(this.H + 1));
+    return this.produce(Infinity, Math.floor(this.inTotal * this.L / this.M));
+  }
+  produce(avail, limit) {
+    const L = this.L, M = this.M, H = this.H, nt = this.nt;
+    const cap = limit === Infinity ? Math.ceil((avail - H) * L / M) - this.n + 2 : limit - this.n + 1;
+    const out = new Float32Array(Math.max(0, cap)); let o = 0;
+    while (this.n < limit) {
+      const num = this.n * M, i = Math.floor(num / L), ph = num - i * L;
+      if (limit === Infinity && i + H >= avail) break;
+      const t = this.table(ph), b = this.buf, base = i - H + 1 - this.start;
+      let acc = 0; for (let j = 0; j < nt; j++) acc += b[base + j] * t[j];
+      out[o++] = acc; this.n++;
+    }
+    const drop = (Math.floor(this.n * M / L) - H + 1) - this.start;
+    if (drop > 8192) { this.buf.copyWithin(0, drop, this.len); this.len -= drop; this.start += drop; }
+    return out.subarray(0, o);
+  }
+}
+function toInt16(f) {
+  const o = new Int16Array(f.length);
+  for (let i = 0; i < f.length; i++) { let s = f[i]; s = s < -1 ? -1 : (s > 1 ? 1 : s); o[i] = Math.round(s * 32767); }
+  return o;
+}
+function wavHeader(frames, rate) {
+  const b = new ArrayBuffer(44), v = new DataView(b), data = frames * 2;
+  const w = (o, s) => { for (let i = 0; i < 4; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + data, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, data, true);
+  return b;
+}
+
+// ------------------------------------------------------------------------------------------------ capture micro
+const WORKLET_SRC = `
+class RadRecCapture extends AudioWorkletProcessor {
+  constructor() {
+    super(); this.size = 2048; this.buf = new Float32Array(this.size); this.n = 0; this.started = false; this.on = true;
+    this.port.onmessage = (e) => { if (e.data === 'stop') { this.flush(); this.on = false; this.port.postMessage({type: 'stopped'}); } };
+  }
+  flush() { if (this.n > 0) { const b = this.buf.slice(0, this.n); this.port.postMessage({type: 'data', b: b}, [b.buffer]); this.n = 0; } }
+  process(inputs) {
+    if (!this.on) return false;
+    const inp = inputs[0], ch = inp && inp.length ? inp[0] : null;
+    if (!ch && !this.started) return true;
+    if (!this.started) { this.started = true; this.port.postMessage({type: 'start', t: currentTime}); }
+    const len = ch ? ch.length : 128;
+    for (let i = 0; i < len; i++) {
+      this.buf[this.n++] = ch ? ch[i] : 0;
+      if (this.n === this.size) { const b = this.buf; this.port.postMessage({type: 'data', b: b}, [b.buffer]); this.buf = new Float32Array(this.size); this.n = 0; }
+    }
+    return true;
+  }
+}
+registerProcessor('radrec-capture', RadRecCapture);
+`;
+const CONSTRAINTS = {audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1}};
+function codeErr(name, msg) { const e = new Error(msg || name); e.name = name; return e; }
+
+class Recorder {
+  constructor(onLevel) {
+    this.onLevel = onLevel || (() => {});
+    this.blocks = []; this.pend = []; this.outFrames = 0; this.inFrames = 0;
+    this.peak = 0; this.sumsq = 0; this.t0 = null; this.stopped = false; this.onStopped = null; this.onFirst = null; this.lostTrack = false;
+  }
+  prime() { // à appeler pendant le toucher (iOS) : crée et réveille le contexte audio
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw codeErr('NoAudio');
+    this.ctx = new AC();
+    try { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* réessayé plus bas */ }
+  }
+  async start() {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw codeErr('Insecure');
+    this.stream = await navigator.mediaDevices.getUserMedia(CONSTRAINTS);
+    this.track = this.stream.getAudioTracks()[0];
+    if (!this.track) throw codeErr('NotFoundError');
+    if (this.ctx.state !== 'running') await Promise.race([this.ctx.resume().catch(() => {}), sleep(2000)]);
+    if (this.ctx.state !== 'running') throw codeErr('Suspended');
+    this.rate = this.ctx.sampleRate;
+    this.rs = new Resampler(this.rate, OUT_RATE);
+    let s = {}; try { s = this.track.getSettings() || {}; } catch (e) { /* facultatif */ }
+    this.settings = {};
+    for (const k of ['sampleRate', 'channelCount', 'sampleSize', 'echoCancellation', 'noiseSuppression', 'autoGainControl', 'latency']) if (k in s) this.settings[k] = s[k];
+    this.settings.label = this.track.label || '';
+    this.src = this.ctx.createMediaStreamSource(this.stream);
+    this.sink = this.ctx.createGain(); this.sink.gain.value = 0; this.sink.connect(this.ctx.destination);
+    const first = new Promise((res) => { this.onFirst = res; });
+    this.method = 'scriptprocessor';
+    if (!T.noWorklet && this.ctx.audioWorklet && window.AudioWorkletNode) {
+      try {
+        const url = URL.createObjectURL(new Blob([WORKLET_SRC], {type: 'application/javascript'}));
+        try { await this.ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+        this.node = new AudioWorkletNode(this.ctx, 'radrec-capture', {numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1],
+          channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers'});
+        this.node.port.onmessage = (e) => this.msg(e.data);
+        this.method = 'audioworklet';
+      } catch (e) { this.node = null; this.workletError = String(e && e.message || e); }
+    }
+    if (!this.node) {
+      const sp = this.ctx.createScriptProcessor(4096, 1, 1);
+      sp.onaudioprocess = (e) => {
+        if (this.stopped) return;
+        if (this.t0 === null) { this.t0 = this.ctx.currentTime - 4096 / this.rate; if (this.onFirst) this.onFirst(); }
+        this.data(new Float32Array(e.inputBuffer.getChannelData(0)));
+      };
+      this.node = sp;
+    }
+    this.src.connect(this.node); this.node.connect(this.sink);
+    this.track.addEventListener('ended', () => { this.lostTrack = true; if (this.onLost) this.onLost(); });
+    const ok = await Promise.race([first.then(() => true), sleep(4000).then(() => false)]);
+    if (!ok) throw codeErr('NoData');
+  }
+  msg(d) {
+    if (d.type === 'start') { this.t0 = d.t; if (this.onFirst) this.onFirst(); }
+    else if (d.type === 'data') this.data(d.b);
+    else if (d.type === 'stopped' && this.onStopped) this.onStopped();
+  }
+  data(f) {
+    this.inFrames += f.length;
+    let pk = 0, ss = 0;
+    for (let i = 0; i < f.length; i++) { const a = Math.abs(f[i]); if (a > pk) pk = a; ss += f[i] * f[i]; }
+    if (pk > this.peak) this.peak = pk; this.sumsq += ss;
+    const out = toInt16(this.rs.process(f));
+    if (out.length) { this.pend.push(out); this.outFrames += out.length; }
+    this.onLevel(pk);
+  }
+  now() { return (this.ctx && this.t0 !== null) ? Math.max(0, this.ctx.currentTime - this.t0) : 0; }
+  elapsed() { return this.rate ? this.inFrames / this.rate : 0; }
+  takeBlock() {
+    if (!this.pend.length) return null;
+    let n = 0; for (const p of this.pend) n += p.length;
+    const b = new Int16Array(n); let o = 0; for (const p of this.pend) { b.set(p, o); o += p.length; }
+    this.pend = []; this.blocks.push(b); return b;
+  }
+  async stop() {
+    if (this.stopped) return; this.stopped = true;
+    if (this.node && this.node.port) {
+      await new Promise((res) => { const to = setTimeout(res, 1000); this.onStopped = () => { clearTimeout(to); res(); };
+        try { this.node.port.postMessage('stop'); } catch (e) { clearTimeout(to); res(); } });
+    }
+    this.clockSpan = this.now();
+    this.abort();
+    const tail = toInt16(this.rs.flush()); if (tail.length) { this.pend.push(tail); this.outFrames += tail.length; }
+    this.takeBlock();
+  }
+  abort() {
+    try { if (this.src) this.src.disconnect(); } catch (e) { /* déjà fait */ }
+    try { if (this.node) this.node.disconnect(); } catch (e) { /* déjà fait */ }
+    try { if (this.stream) this.stream.getTracks().forEach((t) => t.stop()); } catch (e) { /* déjà fait */ }
+    try { if (this.ctx && this.ctx.state !== 'closed') this.ctx.close().catch(() => {}); } catch (e) { /* déjà fait */ }
+  }
+  audioInfo() {
+    const dur = this.outFrames / OUT_RATE, rms = this.inFrames ? Math.sqrt(this.sumsq / this.inFrames) : 0;
+    const db = (x) => x > 0 ? Math.round(200 * Math.log10(x)) / 10 : null;
+    return {sample_rate_hz: OUT_RATE, channels: 1, bits: 16, frames: this.outFrames, duration_s: Math.round(dur * 1000) / 1000,
+      peak_dbfs: db(this.peak), rms_dbfs: db(rms),
+      capture: {method: this.method, context_sample_rate_hz: this.rate || null, track_settings: this.settings || {},
+        constraints: CONSTRAINTS.audio, base_latency_s: (this.ctx && this.ctx.baseLatency) || null, worklet_error: this.workletError || null},
+      resampler: this.rs ? this.rs.describe() : null,
+      clock_s: Math.round((this.clockSpan || 0) * 1000) / 1000,
+      clock_minus_audio_s: Math.round(((this.clockSpan || 0) - (this.rate ? this.inFrames / this.rate : 0)) * 1000) / 1000};
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ stockage (IndexedDB)
+function req(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+function txDone(t) { return new Promise((res, rej) => { t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || codeErr('AbortError')); }); }
+const chunkRange = (s) => IDBKeyRange.bound([s, 0], [s, Infinity]);
+const store = {
+  db: null, ok: false, err: '', memRecs: new Map(), memBlobs: new Map(),
+  async open() {
+    try {
+      if (!window.indexedDB) throw codeErr('NoIndexedDB');
+      this.db = await new Promise((res, rej) => {
+        const r = indexedDB.open('radgent-enregistreur', 1);
+        r.onupgradeneeded = () => { const db = r.result;
+          db.createObjectStore('recs', {keyPath: 'name'}); db.createObjectStore('blobs'); db.createObjectStore('chunks'); db.createObjectStore('meta'); };
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(codeErr('Blocked'));
+        setTimeout(() => rej(codeErr('Timeout')), 6000);
+      });
+      this.ok = true;
+    } catch (e) { this.ok = false; this.err = (e && (e.name || e.message)) || 'inconnu'; }
+    return this.ok;
+  },
+  t(names, mode) { return this.db.transaction(names, mode); },
+  async recsAll() {
+    let list = [];
+    if (this.ok) list = await req(this.t(['recs'], 'readonly').objectStore('recs').getAll());
+    for (const r of this.memRecs.values()) list.push(r);
+    return list;
+  },
+  async blobGet(name) {
+    if (this.memBlobs.has(name)) return this.memBlobs.get(name);
+    if (!this.ok) return null;
+    return await req(this.t(['blobs'], 'readonly').objectStore('blobs').get(name));
+  },
+  async saveRecording(rec, blob, session) {
+    if (!this.ok) { this.memSave(rec, blob); return false; }
+    const t = this.t(['recs', 'blobs', 'chunks', 'meta'], 'readwrite'), done = txDone(t);
+    t.objectStore('recs').put(rec); t.objectStore('blobs').put(blob, rec.name);
+    if (session) { t.objectStore('chunks').delete(chunkRange(session)); t.objectStore('meta').delete('partial'); }
+    await done; return true;
+  },
+  memSave(rec, blob) { rec.memOnly = true; this.memRecs.set(rec.name, rec); this.memBlobs.set(rec.name, blob); },
+  async recPatch(name, patch) {
+    if (this.memRecs.has(name)) { Object.assign(this.memRecs.get(name), patch); return; }
+    if (!this.ok) return;
+    const t = this.t(['recs'], 'readwrite'), done = txDone(t), os = t.objectStore('recs'), g = os.get(name);
+    g.onsuccess = () => { if (g.result) os.put(Object.assign(g.result, patch)); };
+    await done;
+  },
+  async recDelete(name) {
+    if (this.memRecs.has(name)) { this.memRecs.delete(name); this.memBlobs.delete(name); return; }
+    if (!this.ok) return;
+    const t = this.t(['recs', 'blobs'], 'readwrite'), done = txDone(t);
+    t.objectStore('recs').delete(name); t.objectStore('blobs').delete(name);
+    await done;
+  },
+  async chunkPut(session, seq, blob, partial) {
+    if (!this.ok) return;
+    const t = this.t(['chunks', 'meta'], 'readwrite'), done = txDone(t);
+    if (blob) t.objectStore('chunks').put(blob, [session, seq]);
+    if (partial) t.objectStore('meta').put(partial, 'partial');
+    await done;
+  },
+  async chunksGet(session) { if (!this.ok) return []; return await req(this.t(['chunks'], 'readonly').objectStore('chunks').getAll(chunkRange(session))); },
+  async partialGet() { if (!this.ok) return null; return (await req(this.t(['meta'], 'readonly').objectStore('meta').get('partial'))) || null; },
+  async partialDrop(session) {
+    if (!this.ok) return;
+    const t = this.t(['chunks', 'meta'], 'readwrite'), done = txDone(t);
+    t.objectStore('chunks').delete(chunkRange(session)); t.objectStore('meta').delete('partial');
+    await done;
+  },
+};
+let persistAsked = false;
+function askPersist() {
+  if (persistAsked) return; persistAsked = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* facultatif */ }
+}
+function storageBanner(extra) {
+  const b = $('#storage-banner');
+  if (store.ok && !extra) { b.hidden = true; return; }
+  b.textContent = extra || ('Le navigateur refuse le stockage sur ce téléphone (navigation privée ?). Les enregistrements seront perdus si la page se ferme : envoyez chacun tout de suite avec « Envoyer ».');
+  b.hidden = false;
+}
+
+// ------------------------------------------------------------------------------------------------ fichiers et envoi
+function refText(rec) {
+  const body = String(rec.ref || '').replace(/\r\n?/g, '\n').trim();
+  if (!body) return '';
+  return (rec.refOrigin === 'corrige_sortie_radgent' ? '#origine: corrige_sortie_radgent\n' : '') + body + '\n';
+}
+function filesMeta(rec) {
+  const f = [{name: rec.name + '.wav', type: 'audio/wav', sig: 'wav:' + rec.bytes}];
+  if (rec.kind === 'W1' && rec.json) f.push({name: rec.name + '.json', type: 'application/json', sig: 'json:' + hash(rec.json)});
+  if (rec.kind === 'NE') { const t = refText(rec); if (t) f.push({name: rec.name + '.txt', type: 'text/plain', sig: 'txt:' + hash(t), text: t}); }
+  return f;
+}
+function filesOf(rec, blob) {
+  return filesMeta(rec).map((f) => Object.assign(f, {rec: rec.name,
+    blob: f.type === 'audio/wav' ? blob : new Blob([f.type === 'text/plain' ? f.text : rec.json], {type: f.type})}));
+}
+function unsentOf(rec) { const s = rec.sent || {}; return filesMeta(rec).filter((f) => s[f.name] !== f.sig); }
+function batchOf(files) {
+  const out = []; let bytes = 0;
+  for (const f of files) { if (out.length >= 10 || (out.length && bytes + f.blob.size > 45e6)) break; out.push(f); bytes += f.blob.size; }
+  return out;
+}
+// Appel SYNCHRONE de navigator.share dans le toucher (exigé par Safari). Chrome Android refuse le .json : il part en .json.txt.
+function tryShare(files) {
+  if (!navigator.share || !navigator.canShare) return Promise.resolve('unsupported');
+  const mk = (alt) => files.map((f) => (alt && /\.json$/.test(f.name)) ? new File([f.blob], f.name + '.txt', {type: 'text/plain'}) : new File([f.blob], f.name, {type: f.type}));
+  let fs = mk(false), ok = false;
+  try { ok = navigator.canShare({files: fs}); } catch (e) { ok = false; }
+  if (!ok) { fs = mk(true); try { ok = navigator.canShare({files: fs}); } catch (e) { ok = false; } }
+  if (!ok) return Promise.resolve('unsupported');
+  try {
+    return navigator.share({files: fs}).then(() => 'shared', (e) => (e && e.name === 'AbortError') ? 'cancelled' : 'failed');
+  } catch (e) { return Promise.resolve('failed'); }
+}
+async function markSent(files) {
+  const by = new Map();
+  for (const f of files) { if (!by.has(f.rec)) by.set(f.rec, []); by.get(f.rec).push(f); }
+  for (const [name, fs] of by) {
+    const rec = (state.recs.find((r) => r.name === name)) || null;
+    const sent = Object.assign({}, rec && rec.sent);
+    for (const f of fs) sent[f.name] = f.sig;
+    if (rec) rec.sent = sent;
+    try { await store.recPatch(name, {sent: sent, sentAt: new Date().toISOString()}); } catch (e) { /* l'état « envoyé » n'est qu'un repère */ }
+  }
+}
+let urls = [];
+function dropUrls() { for (const u of urls) URL.revokeObjectURL(u); urls = []; }
+function fallbackLinks(box, files, why, after) {
+  box.innerHTML = '';
+  box.append(h('p', {class: 'banner warn'}, why || 'Le partage direct n\'est pas disponible ici. Téléchargez chaque fichier, puis mettez-le dans Google Drive (dossier « RadGent enregistrements »).'));
+  for (const f of files) {
+    const u = URL.createObjectURL(f.blob); urls.push(u);
+    const a = h('a', {class: 'mid dl', href: u, download: f.name}, 'Télécharger ' + f.name);
+    a.addEventListener('click', () => { a.classList.add('done'); markSent([f]).then(() => { if (after) after(); }); });
+    box.append(a);
+  }
+}
+async function sendFiles(files, box, after) {
+  const r = await tryShare(files);
+  if (r === 'shared') { await markSent(files); box.innerHTML = ''; box.append(h('p', {class: 'toast'}, 'Envoyé : ' + files.map((f) => f.name).join(', '))); if (after) after(); return; }
+  if (r === 'cancelled') { box.innerHTML = ''; box.append(h('p', {class: 'hint'}, 'Envoi annulé. Rien n\'est perdu.')); return; }
+  fallbackLinks(box, files, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis mettez-les dans Google Drive.' : null, after);
+}
+
+// ------------------------------------------------------------------------------------------------ messages micro
+function micErrorBox(e) {
+  const n = (e && e.name) || '';
+  let title = 'Le micro n\'a pas pu démarrer.', steps = null, text = '';
+  if (n === 'NotAllowedError' || n === 'PermissionDeniedError' || n === 'SecurityError') {
+    title = 'Le micro est refusé.';
+    steps = [
+      'iPhone (Safari) : touchez « aA » (ou l\'icône à gauche de l\'adresse) › Réglages du site web › Micro › Autoriser, puis rechargez la page. Sinon : Réglages de l\'iPhone › Safari › Micro › Autoriser.',
+      'Android (Chrome) : touchez l\'icône à gauche de l\'adresse › Autorisations › Micro › Autoriser, puis rechargez. Vérifiez aussi : Paramètres Android › Applications › Chrome › Autorisations › Micro.',
+    ];
+  } else if (n === 'NotFoundError' || n === 'DevicesNotFoundError' || n === 'OverconstrainedError') {
+    title = 'Aucun micro trouvé sur cet appareil.'; text = 'Branchez ou activez un micro, puis réessayez.';
+  } else if (n === 'NotReadableError' || n === 'TrackStartError' || n === 'AbortError') {
+    title = 'Le micro est occupé.'; text = 'Une autre application l\'utilise (appel, dictaphone, visio). Fermez-la, puis réessayez.';
+  } else if (n === 'Insecure') {
+    title = 'Page non sécurisée.'; text = 'Ouvrez la page à l\'adresse https://radpid.github.io/enregistreur/ (avec https).';
+  } else if (n === 'Suspended') {
+    text = 'Le son du téléphone n\'a pas démarré. Touchez encore une fois le bouton.';
+  } else if (n === 'NoData') {
+    text = 'Le micro ne renvoie aucun son. Fermez les autres applications qui l\'utilisent, rechargez la page et réessayez.';
+  } else if (n === 'NoAudio') {
+    text = 'Ce navigateur ne sait pas enregistrer. Utilisez Safari (iPhone) ou Chrome (Android) à jour.';
+  } else { text = 'Détail : ' + (n || '') + ' ' + ((e && e.message) || ''); }
+  return h('div', {class: 'card danger err', role: 'alert'}, h('h3', {}, title), text ? h('p', {}, text) : null,
+           steps ? h('ol', {}, steps.map((s) => h('li', {}, s))) : null);
+}
+
+// ------------------------------------------------------------------------------------------------ écrans
+const state = {screen: 'home', recs: [], blobs: new Map(), partial: null, recording: false};
+const TITLES = {home: 'Enregistreur RadGent', w1setup: 'Liste à lire', w1run: 'Lecture en cours', w1done: 'Liste à lire', ne: 'Jeu neuf', list: 'Mes enregistrements'};
+function show(name) {
+  for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== 's-' + name;
+  state.screen = name;
+  $('#ttl').textContent = TITLES[name] || '';
+  $('#back').hidden = name === 'home' || name === 'w1run' || state.recording;
+  window.scrollTo(0, 0);
+  if (name === 'home') refreshHome();
+  if (name === 'list') renderList();
+  if (name === 'ne') neEnter();
+  if (name === 'w1setup') w1SetupRender(true);
+}
+function go(name, how) {
+  if (state.recording) return;
+  try { if (how === 'replace') history.replaceState({s: name}, ''); else history.pushState({s: name}, ''); } catch (e) { /* facultatif */ }
+  show(name);
+}
+window.addEventListener('popstate', (e) => {
+  if (state.recording) { try { history.pushState({s: state.screen}, ''); } catch (x) { /* rien */ } return; }
+  show((e.state && e.state.s) || 'home');
+});
+$('#back').addEventListener('click', () => { if (!state.recording) { if (history.state && history.state.s && history.state.s !== 'home') history.back(); else show('home'); } });
+window.addEventListener('beforeunload', (e) => { if (state.recording) { e.preventDefault(); e.returnValue = ''; } });
+
+async function loadRecs() { try { state.recs = await store.recsAll(); } catch (e) { state.recs = []; } return state.recs; }
+function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (state.partial) s.add(state.partial.name); if (cur) s.add(cur.name); return s; }
+
+async function refreshHome() {
+  await loadRecs();
+  const n = state.recs.length, un = state.recs.reduce((a, r) => a + unsentOf(r).length, 0);
+  $('#home-count').textContent = n ? (n + ' enregistrement' + (n > 1 ? 's' : '') + (un ? ' · ' + un + ' fichier' + (un > 1 ? 's' : '') + ' à envoyer' : ' · tout est envoyé')) : 'aucun pour l\'instant';
+  try { state.partial = await store.partialGet(); } catch (e) { state.partial = null; }
+  const p = state.partial, box = $('#recover');
+  if (p && !cur) {
+    $('#recover-text').textContent = 'Un enregistrement a été interrompu avant d\'être gardé : ' + p.name + ' (environ ' + fmtDur((p.frames || 0) / OUT_RATE) + ', commencé le ' + fmtDate(p.startedAt) + ').';
+    box.hidden = false; $('#recover-confirm').hidden = true;
+  } else box.hidden = true;
+  $('#go-w1').disabled = !PH;
+}
+$('#go-w1').addEventListener('click', () => go('w1setup'));
+$('#go-ne').addEventListener('click', () => go('ne'));
+$('#go-list').addEventListener('click', () => go('list'));
+$('#version').textContent = 'Version ' + PAGE_VERSION + '.';
+
+// ------------------------------------------------------------------------------------------------ session d'enregistrement
+let cur = null;
+function meter(el) {
+  let shown = 0;
+  return (pk) => {
+    const db = pk > 0 ? 20 * Math.log10(pk) : -90, lvl = Math.max(0, Math.min(1, (db + 60) / 60));
+    shown = Math.max(lvl, shown - 0.06); el.style.width = (shown * 100).toFixed(1) + '%'; el.classList.toggle('clip', pk >= 0.99);
+  };
+}
+function beginRecording(kind, name, meterEl, pauseEl, extra) {
+  // Synchrone jusqu'à r.prime() : le contexte audio naît pendant le toucher (iOS).
+  const r = new Recorder(meter(meterEl));
+  r.prime();
+  const c = {kind, name, r, session: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), seq: 0, startedAt: new Date(),
+             interruptions: [], chain: Promise.resolve(), cpFail: false, extra: extra || (() => ({})), pauseEl};
+  return r.start().then(() => {
+    cur = c; state.recording = true; $('#back').hidden = true;
+    wake.on(); askPersist();
+    r.ctx.onstatechange = () => onCtxState(c);
+    r.onLost = () => { c.interruptions.push({at_s: round3(r.now()), what: 'micro perdu'}); if (c.onLost) c.onLost(); };
+    checkpoint(c, true);
+    c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000);
+    return c;
+  }, (e) => { r.abort(); throw e; });
+}
+const round3 = (x) => Math.round(x * 1000) / 1000;
+function partialOf(c) {
+  return Object.assign({session: c.session, kind: c.kind, name: c.name, startedAt: c.startedAt.toISOString(), frames: c.r.outFrames,
+                        audio: c.r.audioInfo(), device: deviceInfo(), interruptions: c.interruptions}, c.extra());
+}
+function checkpoint(c, metaOnly) {
+  const b = metaOnly ? null : c.r.takeBlock(), seq = b ? c.seq++ : null, p = partialOf(c);
+  c.chain = c.chain.then(() => store.chunkPut(c.session, seq, b ? new Blob([b]) : null, p)).catch(() => {
+    if (!c.cpFail) { c.cpFail = true; storageBanner('La sauvegarde de sécurité pendant l\'enregistrement échoue (stockage plein ou refusé). Envoyez vos fichiers dès la fin.'); }
+  });
+}
+function onCtxState(c) {
+  if (cur !== c) return;
+  const st = c.r.ctx.state;
+  if (st !== 'running') {
+    c.interruptions.push({at_s: round3(c.r.elapsed()), what: 'son en pause (' + st + ')'});
+    c.pauseEl.innerHTML = ''; c.pauseEl.hidden = false;
+    c.pauseEl.append('L\'enregistrement est en pause (appel ou autre application). ',
+      h('button', {class: 'mid primary', onclick: () => { c.r.ctx.resume().catch(() => {}); }}, 'Reprendre'));
+  } else c.pauseEl.hidden = true;
+}
+async function stopRecording() {
+  const c = cur; clearInterval(c.cpTimer);
+  await c.r.stop();
+  wake.off();
+  await c.chain;
+  const blob = new Blob([wavHeader(c.r.outFrames, OUT_RATE), ...c.r.blocks], {type: 'audio/wav'});
+  c.pauseEl.hidden = true;
+  return {c, blob, info: c.r.audioInfo()};
+}
+async function persist(rec, blob, session) {
+  let ok = false;
+  try { ok = await store.saveRecording(rec, blob, session); } catch (e) { store.memSave(rec, blob); ok = false; }
+  cur = null; state.recording = false; $('#back').hidden = state.screen === 'home' || state.screen === 'w1run';
+  await loadRecs();
+  return ok;
+}
+function notSavedBox(name) {
+  return h('div', {class: 'banner danger'}, 'Attention : le téléphone n\'a pas pu garder ' + name + ' (stockage refusé ou plein). Envoyez-le maintenant : il sera perdu si la page se ferme.');
+}
+function silentNote(info) { return (info.peak_dbfs === null || info.peak_dbfs < -60) ? h('div', {class: 'banner warn'}, 'Presque aucun son capté : vérifiez le micro (prise à supprimer seulement si c\'est une panne).') : null; }
+const wake = {
+  lock: null,
+  async on() { try { if ('wakeLock' in navigator) { this.lock = await navigator.wakeLock.request('screen'); } } catch (e) { this.lock = null; } },
+  off() { try { if (this.lock) this.lock.release().catch(() => {}); } catch (e) { /* rien */ } this.lock = null; },
+};
+document.addEventListener('visibilitychange', () => {
+  if (!cur) return;
+  if (document.visibilityState === 'visible') wake.on();
+  else cur.interruptions.push({at_s: round3(cur.r.elapsed()), what: 'page cachée (écran éteint ou autre application)'});
+});
+
+// ------------------------------------------------------------------------------------------------ W1 : réglages
+const W1 = {day: '1', block: 'A'};
+function segInit(id, key) {
+  for (const b of document.querySelectorAll('#' + id + ' button')) b.addEventListener('click', () => { W1[key] = b.dataset.v; w1SetupRender(false); });
+}
+segInit('w1-day', 'day'); segInit('w1-block', 'block');
+$('#w1-voice').addEventListener('input', () => w1SetupRender(false));
+function w1Base(voice, day, block) { return 'W1_' + voice + '_J' + day + '_' + block; }
+function uniqueName(base) { const t = takenNames(); if (!t.has(base)) return base; let i = 2; while (t.has(base + '_' + i)) i++; return base + '_' + i; }
+async function w1SetupRender(entering) {
+  if (entering) {
+    $('#w1-error').innerHTML = '';
+    $('#w1-voice').value = prefs.get('voice', 'moi');
+    await loadRecs();
+    const v = cleanVoice($('#w1-voice').value);
+    const next = [['1', 'A'], ['1', 'B'], ['2', 'A'], ['2', 'B']].find(([d, b]) => !takenNames().has(w1Base(v, d, b)));
+    if (next) { W1.day = next[0]; W1.block = next[1]; }
+  }
+  for (const b of document.querySelectorAll('#w1-day button')) b.setAttribute('aria-pressed', String(b.dataset.v === W1.day));
+  for (const b of document.querySelectorAll('#w1-block button')) b.setAttribute('aria-pressed', String(b.dataset.v === W1.block));
+  const v = cleanVoice($('#w1-voice').value), base = w1Base(v, W1.day, W1.block), name = uniqueName(base);
+  $('#w1-file').textContent = name + '.wav';
+  const notes = [];
+  if (name !== base) notes.push(base + ' existe déjà : la nouvelle prise s\'appellera ' + name + '.wav (l\'ancienne est gardée).');
+  if (W1.day === '2') {
+    const j1 = state.recs.find((r) => r.name === w1Base(v, '1', W1.block));
+    if (!j1) notes.push('Le jour 1 de ce bloc n\'est pas sur ce téléphone.');
+    else { const hrs = (Date.now() - new Date(j1.created).getTime()) / 3.6e6; if (hrs < 24) notes.push('Le jour 1 de ce bloc date de ' + Math.max(0, Math.floor(hrs)) + ' h : attendez au moins 24 h.'); }
+  }
+  $('#w1-note').textContent = notes.join(' '); $('#w1-note').hidden = !notes.length;
+}
+
+// ------------------------------------------------------------------------------------------------ W1 : lecture
+let W = null;
+$('#w1-start').addEventListener('click', () => {
+  if (state.recording || W && W.starting) return;
+  const voice = cleanVoice($('#w1-voice').value); prefs.set('voice', voice);
+  const name = uniqueName(w1Base(voice, W1.day, W1.block));
+  W = {voice, day: W1.day, block: W1.block, name, list: sentencesFor(W1.block, W1.day), idx: -1, shown: [], errors: [], lastTap: 0, finishing: false, starting: true};
+  $('#w1-error').innerHTML = '';
+  $('#w1-sentence').textContent = ''; $('#w1-pos').textContent = 'Préparation du micro…'; $('#w1-id').textContent = '';
+  $('#w1-next').disabled = true; $('#w1-err').disabled = true; $('#w1-toast').textContent = ''; $('#w1-stopconfirm').hidden = true;
+  $('#w1-time').textContent = '00:00'; $('#w1-progbar').style.width = '0';
+  const w = W;
+  let p;
+  try { p = beginRecording('W1', name, $('#w1-meter'), $('#w1-pause'), () => w1Extra(w)); } catch (e) { p = Promise.reject(e); }
+  go('w1run', 'replace');
+  p.then((c) => {
+    w.starting = false;
+    c.onLost = () => { if (!w.finishing) w1Finish(false, 'Le micro a été coupé : l\'enregistrement est arrêté et gardé.'); };
+    c.tick = setInterval(() => { const s = c.r.elapsed(); $('#w1-time').textContent = fmtClock(s); if (s >= T.w1Limit && !w.finishing) w1Finish(false, 'Arrêt automatique après ' + fmtDur(T.w1Limit) + '.'); }, 250);
+    $('#w1-next').disabled = false; $('#w1-err').disabled = false;
+    w1Advance(true);
+  }, (e) => {
+    w.starting = false; W = null;
+    go('w1setup', 'replace');
+    $('#w1-error').innerHTML = ''; $('#w1-error').append(micErrorBox(e));
+  });
+});
+function w1Extra(w) {
+  return {voice: w.voice, day: 'J' + w.day, block: w.block, sentences: w.shown.slice(), reading_errors: w.errors.slice(), n_planned: w.list.length};
+}
+function fitSentence(el) {
+  let size = Math.min(34, Math.max(24, Math.floor(window.innerWidth / 11)));
+  el.style.fontSize = size + 'px';
+  while (size > 18 && el.scrollWidth > el.clientWidth + 1) { size -= 1; el.style.fontSize = size + 'px'; }
+  return size;
+}
+function w1Advance(first) {
+  const w = W; if (!w || w.finishing || !cur) return;
+  const now = performance.now();
+  if (!first && now - w.lastTap < T.tapGuardMs) return;
+  w.lastTap = now;
+  if (w.idx >= w.list.length - 1) { w1Finish(true); return; }
+  w.idx++;
+  const s = w.list[w.idx], last = w.idx === w.list.length - 1;
+  w.shown.push({index: w.idx + 1, id: s.id, text: s.text, start_s: round3(cur.r.now())});
+  const el = $('#w1-sentence'); el.textContent = s.text; fitSentence(el);
+  $('#w1-pos').textContent = 'Phrase ' + (w.idx + 1) + ' / ' + w.list.length; $('#w1-id').textContent = s.id;
+  $('#w1-progbar').style.width = ((w.idx + 1) / w.list.length * 100).toFixed(1) + '%';
+  $('#w1-next').textContent = last ? 'Terminer et enregistrer' : 'Suivant';
+  $('#w1-toast').textContent = '';
+  checkpoint(cur, true);
+}
+$('#w1-next').addEventListener('click', () => w1Advance(false));
+$('#w1-err').addEventListener('click', () => {
+  const w = W; if (!w || w.idx < 0 || !cur || w.finishing) return;
+  const s = w.list[w.idx];
+  w.errors.push({id: s.id, index: w.idx + 1, at_s: round3(cur.r.now())});
+  $('#w1-toast').textContent = 'Erreur notée (' + s.id + ') : relisez toute la phrase.';
+  checkpoint(cur, true);
+});
+$('#w1-stop').addEventListener('click', () => { if (W && !W.finishing && cur) $('#w1-stopconfirm').hidden = false; });
+$('#w1-stopno').addEventListener('click', () => { $('#w1-stopconfirm').hidden = true; });
+$('#w1-stopyes').addEventListener('click', () => { $('#w1-stopconfirm').hidden = true; w1Finish(false, 'Arrêté avant la fin de la liste.'); });
+async function w1Finish(complete, why) {
+  const w = W; if (!w || w.finishing || !cur) return;
+  w.finishing = true;
+  $('#w1-next').disabled = true; $('#w1-err').disabled = true;
+  $('#w1-pos').textContent = 'Enregistrement sur le téléphone…';
+  const c = cur; clearInterval(c.tick);
+  const {blob, info} = await stopRecording();
+  const created = c.startedAt;
+  const doc = {
+    format: 'radgent-w1-lecture/1', file: w.name + '.wav', voice: w.voice, day: 'J' + w.day, block: w.block,
+    source: PH.source, source_sha256: PH.source_sha256, page_version: PAGE_VERSION,
+    created_utc: created.toISOString(), created_local: localIso(created),
+    complete: !!complete, n_planned: w.list.length, n_shown: w.shown.length,
+    clock: 'start_s et at_s : secondes depuis le premier échantillon du fichier (horloge du contexte audio), au moment où la phrase s\'affiche ou où le bouton est touché',
+    sentences: w.shown, reading_errors: w.errors, interruptions: c.interruptions, stop_reason: why || 'fin de la liste',
+    audio: info, device: deviceInfo(),
+  };
+  const json = JSON.stringify(doc, null, 1);
+  const rec = {name: w.name, kind: 'W1', created: created.toISOString(), duration_s: info.duration_s, frames: info.frames, bytes: blob.size,
+               sent: {}, json, complete: !!complete, interrupted: false, info: {capture: info.capture, resampler: info.resampler}};
+  const ok = await persist(rec, blob, c.session);
+  W = null;
+  w1DoneRender(rec, blob, ok, why, info);
+}
+let lastDone = null;
+function w1DoneRender(rec, blob, ok, why, info) {
+  lastDone = {rec, blob};
+  const doc = JSON.parse(rec.json);
+  $('#w1-done-text').textContent = rec.name + '.wav : ' + fmtDur(rec.duration_s) + ', ' + doc.n_shown + ' phrase' + (doc.n_shown > 1 ? 's' : '') + ' sur ' + doc.n_planned +
+    ', ' + doc.reading_errors.length + ' erreur' + (doc.reading_errors.length > 1 ? 's' : '') + ' de lecture notée' + (doc.reading_errors.length > 1 ? 's' : '') + '.' + (ok ? ' Gardé sur le téléphone.' : '');
+  const box = $('#w1-done-warn'); box.innerHTML = '';
+  if (!ok) box.append(notSavedBox(rec.name));
+  if (why && !rec.complete) box.append(h('div', {class: 'banner warn'}, why));
+  const sil = silentNote(info); if (sil) box.append(sil);
+  $('#w1-send-out').innerHTML = '';
+  go('w1done', 'replace');
+}
+$('#w1-send').addEventListener('click', () => { if (lastDone) sendFiles(filesOf(lastDone.rec, lastDone.blob), $('#w1-send-out'), null); });
+$('#w1-again').addEventListener('click', () => go('w1setup'));
+$('#w1-tolist').addEventListener('click', () => go('list'));
+
+// ------------------------------------------------------------------------------------------------ Jeu neuf
+const NE = {n: 1, phase: 'ready', last: null, warned: false, stopping: false};
+const neName = (n) => 'NE' + String(n).padStart(3, '0');
+function nePhase(p) {
+  NE.phase = p;
+  $('#ne-ready').hidden = p !== 'ready'; $('#ne-recording').hidden = p !== 'recording'; $('#ne-stopped').hidden = p !== 'stopped';
+  $('#ne-recbar').hidden = p !== 'recording'; $('#ne-edit').disabled = p !== 'ready';
+  $('#ne-rules').hidden = p === 'recording'; $('#ne-hint').hidden = p !== 'ready';
+  if (p !== 'recording') $('#ne-warn').hidden = true;
+}
+async function neEnter() {
+  if (NE.phase === 'recording') return;
+  if (!(NE.phase === 'stopped' && NE.last)) { NE.last = null; neFree(); nePhase('ready'); }
+  await loadRecs();
+  if (NE.phase === 'stopped' && NE.last && !state.recs.find((r) => r.name === NE.last.rec.name)) { NE.last = null; nePhase('ready'); }
+  if (NE.phase === 'ready') neFree();
+}
+function neFree() {
+  const t = takenNames(); let n = Math.max(1, parseInt(prefs.get('neNext', 1), 10) || 1);
+  while (t.has(neName(n)) && n < 999) n++;
+  NE.n = n; neSlot();
+}
+function neSlot() {
+  $('#ne-slot').textContent = neName(NE.n);
+  const taken = takenNames().has(neName(NE.n));
+  $('#ne-note').textContent = taken ? neName(NE.n) + ' existe déjà sur ce téléphone : choisissez un autre numéro.' : '';
+  $('#ne-note').hidden = !taken; $('#ne-rec').disabled = taken;
+}
+$('#ne-edit').addEventListener('click', () => { $('#ne-editbox').hidden = !$('#ne-editbox').hidden; $('#ne-num').value = NE.n; });
+$('#ne-numok').addEventListener('click', () => {
+  const v = parseInt($('#ne-num').value, 10);
+  if (!(v >= 1 && v <= 999)) { $('#ne-note').textContent = 'Numéro entre 1 et 999.'; $('#ne-note').hidden = false; return; }
+  NE.n = v; prefs.set('neNext', v); $('#ne-editbox').hidden = true; neSlot();
+});
+$('#ne-rec').addEventListener('click', () => {
+  if (state.recording || NE.phase !== 'ready' || NE.starting) return;
+  const name = neName(NE.n);
+  if (takenNames().has(name)) { neSlot(); return; }
+  NE.starting = true; NE.warned = false; NE.stopping = false;
+  $('#ne-error').innerHTML = ''; $('#ne-time').textContent = '00:00'; $('#ne-editbox').hidden = true;
+  $('#ne-rec').disabled = true; $('#ne-rec').textContent = 'Préparation du micro…';
+  let p;
+  try { p = beginRecording('NE', name, $('#ne-meter'), $('#ne-pause'), null); } catch (e) { p = Promise.reject(e); }
+  p.then((c) => {
+    NE.starting = false; $('#ne-rec').textContent = 'Enregistrer';
+    nePhase('recording');
+    c.onLost = () => neStop('Le micro a été coupé : l\'enregistrement est arrêté et gardé.');
+    c.tick = setInterval(() => {
+      const s = c.r.elapsed(); $('#ne-time').textContent = fmtClock(s);
+      if (s >= T.warnAt && !NE.warned) {
+        NE.warned = true; $('#ne-warn').hidden = false;
+        $('#ne-warn').textContent = fmtClock(T.warnAt) + ' : il reste ' + fmtDur(T.limitAt - T.warnAt) + ' avant la limite de ' + fmtDur(T.limitAt) + '. Terminez la dictée.';
+        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) { /* facultatif */ }
+      }
+      if (s >= T.limitAt) neStop('Arrêt automatique à ' + fmtDur(T.limitAt) + ' (limite du produit).');
+    }, 250);
+  }, (e) => {
+    NE.starting = false; $('#ne-rec').textContent = 'Enregistrer'; $('#ne-rec').disabled = false;
+    $('#ne-error').innerHTML = ''; $('#ne-error').append(micErrorBox(e));
+  });
+});
+$('#ne-stop').addEventListener('click', () => neStop(null));
+async function neStop(why) {
+  if (NE.stopping || !cur || cur.kind !== 'NE') return;
+  NE.stopping = true; $('#ne-stop').disabled = true; $('#ne-stop').textContent = 'Enregistrement sur le téléphone…';
+  const c = cur; clearInterval(c.tick);
+  const {blob, info} = await stopRecording();
+  const rec = {name: c.name, kind: 'NE', created: c.startedAt.toISOString(), duration_s: info.duration_s, frames: info.frames, bytes: blob.size,
+               sent: {}, ref: '', refOrigin: '', interrupted: false, stop_reason: why || 'arrêt',
+               info: {capture: info.capture, resampler: info.resampler, interruptions: c.interruptions, device: deviceInfo(), page_version: PAGE_VERSION}};
+  const ok = await persist(rec, blob, c.session);
+  $('#ne-stop').disabled = false; $('#ne-stop').textContent = 'Arrêter'; NE.stopping = false;
+  NE.last = {rec, blob};
+  const box = $('#ne-saved'); box.innerHTML = '';
+  box.append(h('b', {}, rec.name), ' : ' + fmtDur(rec.duration_s) + '. ' + (ok ? 'Gardé sur le téléphone.' : ''));
+  if (why) box.append(h('br'), why);
+  if (!ok) box.append(notSavedBox(rec.name));
+  const sil = silentNote(info); if (sil) box.append(sil);
+  $('#ne-delconfirm').hidden = true; nePlayReset();
+  nePhase('stopped');
+}
+function nePlayReset() { const a = $('#ne-audio'); try { a.pause(); } catch (e) { /* rien */ } $('#ne-play').textContent = 'Réécouter'; }
+$('#ne-play').addEventListener('click', () => {
+  const a = $('#ne-audio');
+  if (!NE.last) return;
+  if (!a.paused) { nePlayReset(); return; }
+  if (a.dataset.for !== NE.last.rec.name) { if (a.src) URL.revokeObjectURL(a.src); a.src = URL.createObjectURL(NE.last.blob); a.dataset.for = NE.last.rec.name; }
+  a.currentTime = 0;
+  a.play().then(() => { $('#ne-play').textContent = 'Arrêter la lecture'; }, () => { $('#ne-play').textContent = 'Réécouter'; });
+});
+$('#ne-audio').addEventListener('ended', nePlayReset);
+$('#ne-keep').addEventListener('click', () => {
+  nePlayReset();
+  if (NE.last) { const m = /^NE(\d+)$/.exec(NE.last.rec.name); if (m) prefs.set('neNext', parseInt(m[1], 10) + 1); }
+  NE.last = null; neFree(); nePhase('ready');
+});
+$('#ne-del').addEventListener('click', () => {
+  if (!NE.last) return;
+  $('#ne-deltext').textContent = 'Supprimer ' + NE.last.rec.name + ' définitivement ? À faire seulement si un nom de patient a été dit, ou en cas de panne.';
+  $('#ne-delconfirm').hidden = false;
+});
+$('#ne-delno').addEventListener('click', () => { $('#ne-delconfirm').hidden = true; });
+$('#ne-delyes').addEventListener('click', async () => {
+  if (!NE.last) return;
+  nePlayReset();
+  const name = NE.last.rec.name, m = /^NE(\d+)$/.exec(name);
+  await store.recDelete(name); await loadRecs();
+  NE.last = null; if (m) prefs.set('neNext', parseInt(m[1], 10));
+  neFree(); nePhase('ready');
+  $('#ne-note').textContent = 'Prise supprimée. Vous pouvez recommencer ' + name + '.'; $('#ne-note').hidden = false;
+});
+
+// ------------------------------------------------------------------------------------------------ Mes enregistrements
+let refTimers = {};
+async function renderList() {
+  dropUrls();
+  await loadRecs();
+  const recs = state.recs.slice().sort((a, b) => a.name < b.name ? -1 : 1);
+  state.blobs = new Map();
+  await Promise.all(recs.map(async (r) => { try { state.blobs.set(r.name, await store.blobGet(r.name)); } catch (e) { /* absent */ } }));
+  const total = recs.reduce((a, r) => a + (r.bytes || 0), 0);
+  let line = recs.length + ' enregistrement' + (recs.length > 1 ? 's' : '') + ' · ' + fmtSize(total) + ' sur ce téléphone';
+  $('#list-storage').textContent = line;
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const e = await navigator.storage.estimate();
+      let pers = null; try { pers = navigator.storage.persisted ? await navigator.storage.persisted() : null; } catch (x) { pers = null; }
+      line += ' · espace utilisé par la page : ' + fmtSize(e.usage || 0) + (e.quota ? ' (disponible : ' + fmtSize(e.quota) + ')' : '') +
+              (pers === true ? ' · stockage protégé' : (pers === false ? ' · stockage non protégé : envoyez vite' : ''));
+      $('#list-storage').textContent = line;
+    }
+  } catch (e) { /* facultatif */ }
+  $('#list-out').innerHTML = '';
+  listSendAllLabel();
+  const box = $('#list-items'); box.innerHTML = '';
+  const ne = recs.filter((r) => r.kind === 'NE'), w1 = recs.filter((r) => r.kind === 'W1');
+  if (!recs.length) box.append(h('p', {class: 'hint'}, 'Aucun enregistrement pour l\'instant.'));
+  if (ne.length) { box.append(h('h3', {}, 'Jeu neuf (NE)')); ne.forEach((r) => box.append(itemCard(r))); }
+  if (w1.length) { box.append(h('h3', {}, 'Liste à lire (W1)')); w1.forEach((r) => box.append(itemCard(r))); }
+}
+function allUnsentFiles() {
+  const out = [];
+  for (const r of state.recs.slice().sort((a, b) => a.name < b.name ? -1 : 1)) {
+    const blob = state.blobs.get(r.name); if (!blob) continue;
+    const un = new Set(unsentOf(r).map((f) => f.name));
+    for (const f of filesOf(r, blob)) if (un.has(f.name)) out.push(f);
+  }
+  return out;
+}
+function listSendAllLabel() {
+  const n = allUnsentFiles().length, b = $('#list-sendall');
+  b.disabled = !n; b.textContent = n ? 'Tout envoyer (' + n + ' fichier' + (n > 1 ? 's' : '') + ' non envoyé' + (n > 1 ? 's' : '') + ')' : 'Tout est envoyé';
+}
+$('#list-sendall').addEventListener('click', () => {
+  const all = allUnsentFiles(); if (!all.length) return;
+  const batch = batchOf(all), out = $('#list-out');
+  const p = tryShare(batch);
+  p.then(async (r) => {
+    if (r === 'shared') {
+      await markSent(batch); await refreshCards();
+      const left = allUnsentFiles().length;
+      out.innerHTML = ''; out.append(h('p', {class: 'toast'}, batch.length + ' fichier' + (batch.length > 1 ? 's' : '') + ' envoyé' + (batch.length > 1 ? 's' : '') + '.' + (left ? ' Touchez encore « Tout envoyer » pour la suite.' : '')));
+    } else if (r === 'cancelled') { out.innerHTML = ''; out.append(h('p', {class: 'hint'}, 'Envoi annulé. Rien n\'est perdu.')); }
+    else fallbackLinks(out, all, r === 'failed' ? 'Le partage a échoué. Téléchargez les fichiers un par un, puis mettez-les dans Google Drive.' : null, refreshCards);
+  });
+});
+async function refreshCards() {
+  await loadRecs();
+  for (const card of document.querySelectorAll('#list-items .item')) {
+    const r = state.recs.find((x) => x.name === card.dataset.name); if (r) card.querySelector('.badge').replaceWith(badge(r));
+  }
+  listSendAllLabel();
+}
+function badge(r) {
+  const un = unsentOf(r), all = filesMeta(r);
+  if (!un.length) return h('span', {class: 'badge sent'}, 'envoyé');
+  if (un.length < all.length) return h('span', {class: 'badge unsent'}, un.map((f) => f.name.split('.').slice(1).join('.')).join(', ') + ' à envoyer');
+  return h('span', {class: 'badge unsent'}, 'à envoyer');
+}
+function itemCard(r) {
+  const blob = state.blobs.get(r.name);
+  const card = h('article', {class: 'item', 'data-name': r.name});
+  const meta = [fmtDur(r.duration_s || 0), fmtDate(r.created), fmtSize(r.bytes || 0)];
+  if (r.kind === 'W1' && r.complete === false) meta.push('incomplet');
+  if (r.interrupted) meta.push('récupéré après interruption');
+  if (r.memOnly) meta.push('PAS gardé sur le téléphone');
+  card.append(h('div', {class: 'hd'}, h('span', {class: 'nm'}, r.name), badge(r)), h('div', {class: 'meta'}, meta.join(' · ')));
+  const audio = h('audio', {controls: true, preload: 'none', hidden: true});
+  const out = h('div', {class: 'stack'});
+  const confirm = h('div', {class: 'card danger', hidden: true});
+  const btns = h('div', {class: 'row3'},
+    h('button', {class: 'mid', 'data-act': 'play', onclick: () => {
+      if (!blob) return;
+      if (audio.hidden) { if (!audio.src) { const u = URL.createObjectURL(blob); urls.push(u); audio.src = u; } audio.hidden = false; audio.play().catch(() => {}); }
+      else { audio.pause(); audio.hidden = true; }
+    }}, 'Écouter'),
+    h('button', {class: 'mid primary', 'data-act': 'send', onclick: () => { if (blob) sendFiles(filesOf(state.recs.find((x) => x.name === r.name) || r, blob), out, refreshCards); }}, 'Envoyer'),
+    h('button', {class: 'mid', 'data-act': 'del', onclick: () => { confirm.hidden = false; }}, 'Supprimer'));
+  if (!blob) btns.querySelectorAll('button[data-act=play], button[data-act=send]').forEach((b) => { b.disabled = true; });
+  card.append(btns, audio, out);
+  const un = unsentOf(r).length;
+  confirm.append(h('p', {}, 'Supprimer ' + r.name + ' définitivement de ce téléphone ?' + (un ? ' Attention : pas encore envoyé.' : '')),
+    h('div', {class: 'row2'},
+      h('button', {class: 'mid danger-btn', 'data-act': 'delyes', onclick: async () => { await store.recDelete(r.name); renderList(); }}, 'Oui, supprimer'),
+      h('button', {class: 'mid', 'data-act': 'delno', onclick: () => { confirm.hidden = true; }}, 'Annuler')));
+  card.append(confirm);
+  if (r.kind === 'NE') {
+    const ta = h('textarea', {rows: '4', lang: 'de', 'data-act': 'ref', placeholder: 'Le texte final que vous signeriez, tapé en écoutant. Sans nom de patient.'});
+    ta.value = r.ref || '';
+    const chk = h('input', {type: 'checkbox', 'data-act': 'origin'}); chk.checked = r.refOrigin === 'corrige_sortie_radgent';
+    const saved = h('span', {class: 'saved', 'aria-live': 'polite'});
+    const save = async () => {
+      clearTimeout(refTimers[r.name]);
+      const patch = {ref: ta.value, refOrigin: chk.checked ? 'corrige_sortie_radgent' : ''};
+      try { await store.recPatch(r.name, patch); saved.textContent = 'Texte gardé sur le téléphone.'; } catch (e) { saved.textContent = 'Texte NON gardé (stockage refusé).'; }
+      await refreshCards();
+    };
+    ta.addEventListener('input', () => { saved.textContent = ''; clearTimeout(refTimers[r.name]); refTimers[r.name] = setTimeout(save, 600); });
+    ta.addEventListener('blur', save); chk.addEventListener('change', save);
+    card.append(h('label', {class: 'field'}, 'Texte de référence (facultatif)', ta),
+      h('label', {class: 'chk'}, chk, 'Corrigé depuis une sortie de RadGent (pas écrit depuis l\'audio)'), saved);
+  }
+  return card;
+}
+
+// ------------------------------------------------------------------------------------------------ récupération après interruption
+$('#recover-no').addEventListener('click', () => { $('#recover-confirm').hidden = false; });
+$('#recover-keep').addEventListener('click', () => { $('#recover-confirm').hidden = true; });
+$('#recover-del').addEventListener('click', async () => { if (state.partial) await store.partialDrop(state.partial.session); state.partial = null; refreshHome(); });
+$('#recover-yes').addEventListener('click', async () => {
+  const p = state.partial; if (!p || cur) return;
+  $('#recover-yes').disabled = true;
+  try {
+    const parts = await store.chunksGet(p.session);
+    let bytes = 0; for (const b of parts) bytes += b.size;
+    const frames = Math.floor(bytes / 2), blob = new Blob([wavHeader(frames, OUT_RATE), ...parts], {type: 'audio/wav'});
+    await loadRecs(); state.partial = null;
+    const t = takenNames(); let name = p.name; if (t.has(name)) { let i = 2; while (t.has(p.name + '_r' + i)) i++; name = p.name + '_r' + i; }
+    const audio = Object.assign({}, p.audio || {}, {frames, duration_s: round3(frames / OUT_RATE)});
+    const rec = {name, kind: p.kind, created: p.startedAt, duration_s: audio.duration_s, frames, bytes: blob.size, sent: {}, interrupted: true,
+                 info: {capture: audio.capture, resampler: audio.resampler, interruptions: p.interruptions}};
+    if (p.kind === 'NE') { rec.ref = ''; rec.refOrigin = ''; rec.stop_reason = 'interrompu (page fermée), récupéré'; }
+    else {
+      rec.complete = false;
+      rec.json = JSON.stringify({format: 'radgent-w1-lecture/1', file: name + '.wav', voice: p.voice, day: p.day, block: p.block,
+        source: PH ? PH.source : null, source_sha256: PH ? PH.source_sha256 : null, page_version: PAGE_VERSION,
+        created_utc: p.startedAt, complete: false, recovered: true, n_planned: p.n_planned, n_shown: (p.sentences || []).length,
+        clock: 'start_s et at_s : secondes depuis le premier échantillon du fichier (horloge du contexte audio)',
+        sentences: p.sentences || [], reading_errors: p.reading_errors || [], interruptions: p.interruptions || [],
+        stop_reason: 'interrompu (page fermée), récupéré', audio, device: p.device || deviceInfo()}, null, 1);
+    }
+    const ok = await store.saveRecording(rec, blob, p.session);
+    if (!ok) storageBanner();
+  } catch (e) { storageBanner('Récupération impossible : ' + ((e && e.name) || e)); }
+  $('#recover-yes').disabled = false;
+  go('list');
+});
+
+// ------------------------------------------------------------------------------------------------ démarrage
+window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, T, state: () => state};
+(async function boot() {
+  try { history.replaceState({s: 'home'}, ''); } catch (e) { /* facultatif */ }
+  await store.open();
+  storageBanner();
+  await loadRecs();
+  if (!PH) $('#go-w1').append(h('small', {}, '(liste absente de la page)'));
+  show('home');
+  document.body.dataset.ready = '1';
+})();
+})();
+</script>
+</body>
+</html>
