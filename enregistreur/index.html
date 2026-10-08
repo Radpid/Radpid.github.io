@@ -15,6 +15,7 @@
   Enregistreur RadGent : page unique, sans réseau (aucun CDN, aucune police, aucun fetch, aucune statistique).
   Source de vérité : radgent-cloud/tools/enregistreur/index.html ; copie identique : radpid.github.io/enregistreur/.
   Les phrases W1 sont insérées par tools/enregistreur/build_sentences.py depuis LISTE_A_LIRE.md (jamais à la main).
+  Mots isolés (MI) : 20 mots fixes, une prise par mot, deux fichiers par série (MI1.wav + MI1.json) ; liste dans le code ci-dessous.
   Audio : micro brut (AudioWorklet, repli ScriptProcessor), rééchantillonné à 16 000 Hz par un filtre sinc-Kaiser
   (anti-repliement), WAV PCM 16 bits mono. Stockage : IndexedDB du téléphone. Envoi : partage du téléphone ou
   téléchargement, toujours déclenché par l'utilisateur.
@@ -76,6 +77,12 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 .progbar{height:6px;border-radius:3px;background:var(--meter-bg);overflow:hidden;margin:6px 0 4px}
 .progbar i{display:block;height:100%;width:0;background:var(--accent)}
 .sentence{font-size:32px;line-height:1.32;font-weight:600;min-height:30vh;margin:18px 0 10px;overflow-wrap:normal;word-break:normal;-webkit-hyphens:manual;hyphens:manual}
+.wordbox{display:flex;align-items:center;justify-content:center;height:116px;margin:8px 0;overflow:hidden}
+.word{margin:0;width:100%;text-align:center;font-weight:700;line-height:1.12;overflow-wrap:normal;word-break:normal;-webkit-hyphens:manual;hyphens:manual}
+.info{min-height:52px;margin:4px 0;font-size:17px;color:var(--muted)}
+.info.ok{color:var(--ok);font-weight:600}
+.info.warn{background:var(--warn-bg);color:var(--warn-fg);border-radius:12px;padding:6px 10px}
+.recbar.idle{visibility:hidden}
 .toast{min-height:26px;color:var(--ok);font-weight:600;font-size:17px;margin:4px 0}
 .slot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .slot b{font-size:44px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
@@ -119,6 +126,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     </div>
     <button class="big primary" id="go-w1">Liste à lire (test W1)<small>phrases à lire, 2 blocs, 2 jours</small></button>
     <button class="big primary" id="go-ne">Jeu neuf : dictées libres<small>NE001, NE002… sans texte à lire</small></button>
+    <button class="big primary" id="go-mi">Mots isolés (rechts, links…)<small>20 mots, une prise par mot</small></button>
     <button class="big" id="go-list">Mes enregistrements<small id="home-count">&nbsp;</small></button>
     <p class="foot">Les fichiers sont gardés dans ce navigateur (pas dans Photos ni dans Fichiers). Ouvrez toujours la page de la même façon : onglet Safari OU icône de l'écran d'accueil, jamais les deux (leurs fichiers sont séparés), et jamais en navigation privée. La page n'envoie rien d'elle-même : c'est vous qui envoyez, avec « Envoyer ».</p>
     <p class="ver" id="version"></p>
@@ -214,6 +222,58 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     </div>
   </section>
 
+  <!-- ============================================================== Mots isolés : réglages -->
+  <section id="s-mi" class="screen" hidden>
+    <h2>Mots isolés</h2>
+    <div class="field">Série</div>
+    <div class="seg" id="mi-series"><button type="button" data-v="1" aria-pressed="true">Série 1</button><button type="button" data-v="2" aria-pressed="false">Série 2</button></div>
+    <p class="file">Fichiers : <b id="mi-file">MI1.wav</b> + <b id="mi-file2">MI1.json</b></p>
+    <p id="mi-note" class="banner warn" hidden></p>
+    <ul class="rules">
+      <li>20 mots, <b>une prise par mot</b> : touchez « Enregistrer », <b>attendez</b> « Arrêter », puis dites le mot.</li>
+      <li>Dites-le <b>naturellement, comme au travail</b>. Aucune commande parlée.</li>
+      <li>« Arrêter » juste après le mot. « Refaire » remplace la prise, « Suivant » la garde.</li>
+    </ul>
+    <button class="big primary" id="mi-start">Commencer</button>
+  </section>
+
+  <!-- ============================================================== Mots isolés : une prise par mot -->
+  <section id="s-mirun" class="screen" hidden>
+    <div id="mi-recbar" class="recbar idle"><span class="dot"></span><span id="mi-time">00:00</span><div class="meter"><i id="mi-meter"></i></div></div>
+    <div class="prog"><span id="mi-pos">Mot 1 / 20</span><span id="mi-id">MI01</span></div>
+    <div class="progbar"><i id="mi-progbar"></i></div>
+    <div class="wordbox" id="mi-box"><p id="mi-word" class="word" lang="de"></p></div>
+    <p id="mi-info" class="info" aria-live="polite"></p>
+    <div id="mi-ready"><button class="big rec" id="mi-rec">Enregistrer</button></div>
+    <div id="mi-recording" hidden><button class="big primary" id="mi-stop">Arrêter</button></div>
+    <div id="mi-stopped" hidden>
+      <button class="big primary" id="mi-next">Suivant</button>
+      <div class="row2"><button class="mid" id="mi-play">Réécouter</button><button class="mid" id="mi-redo">Refaire</button></div>
+      <audio id="mi-audio" preload="none" hidden></audio>
+    </div>
+    <button class="link" id="mi-end">Arrêter ici</button>
+    <div id="mi-endconfirm" class="card warn" hidden>
+      <p id="mi-endtext"></p>
+      <div class="row2"><button class="mid danger-btn" id="mi-endyes">Arrêter la série</button><button class="mid" id="mi-endno">Continuer</button></div>
+    </div>
+    <!-- avertissements SOUS les boutons : le bouton principal ne bouge jamais -->
+    <div id="mi-pause" class="banner warn" hidden></div>
+    <div id="mi-live" class="banner warn" hidden></div>
+    <div id="mi-notkept" class="banner danger" hidden></div>
+    <div id="mi-error"></div>
+  </section>
+
+  <!-- ============================================================== Mots isolés : fini -->
+  <section id="s-midone" class="screen" hidden>
+    <h2>Série enregistrée</h2>
+    <p id="mi-done-text"></p>
+    <div id="mi-done-warn"></div>
+    <button class="big primary" id="mi-send">Envoyer maintenant</button>
+    <div id="mi-send-out" class="stack"></div>
+    <button class="big" id="mi-again">Nouvelle série</button>
+    <button class="big" id="mi-tolist">Mes enregistrements</button>
+  </section>
+
   <!-- ============================================================== Mes enregistrements -->
   <section id="s-list" class="screen" hidden>
     <h2>Mes enregistrements</h2>
@@ -229,12 +289,12 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 <script>
 'use strict';
 (function () {
-const PAGE_VERSION = '2026-10-08.2';
+const PAGE_VERSION = '2026-10-08.3';
 const OUT_RATE = 16000;
 const REC_LOCK = 'radgent-enregistreur-en-cours';
 // Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
 const T = Object.assign({warnAt: 450, limitAt: 480, stopEarly: 0.3, w1Limit: 1200, w1TailMs: 600, checkpointEvery: 4, tapGuardMs: 300,
-                         errGuardMs: 1000, silenceWin: 3, noWorklet: false, staleMs: 30000},
+                         errGuardMs: 1000, silenceWin: 3, noWorklet: false, staleMs: 30000, miLimit: 10, miTailMs: 600},
                         (window.__ENREG_TEST__ && typeof window.__ENREG_TEST__ === 'object') ? window.__ENREG_TEST__ : {});
 
 // ------------------------------------------------------------------------------------------------ petits outils
@@ -622,7 +682,7 @@ function neMetaDoc(rec, extra) {
 function neJson(rec) { return rec.json || JSON.stringify(neMetaDoc(rec, {rebuilt: 'prise faite avec une version plus ancienne de la page'}), null, 1); }
 function filesMeta(rec) {
   const s = rec.sent || {}, f = [{name: rec.name + '.wav', type: 'audio/wav', sig: 'wav:' + rec.bytes}];
-  const js = rec.kind === 'W1' ? rec.json : (rec.kind === 'NE' ? neJson(rec) : null);
+  const js = (rec.kind === 'W1' || rec.kind === 'MI') ? rec.json : (rec.kind === 'NE' ? neJson(rec) : null);
   if (js) f.push({name: rec.name + '.json', type: 'application/json', sig: 'json:' + hash(js), text: js});
   if (rec.kind === 'NE') {
     const t = refText(rec);
@@ -728,17 +788,21 @@ function micErrorBox(e) {
 
 // ------------------------------------------------------------------------------------------------ écrans
 const state = {screen: 'home', recs: [], blobs: new Map(), recording: false};
-const TITLES = {home: 'Enregistreur RadGent', w1setup: 'Liste à lire', w1run: 'Lecture en cours', w1done: 'Liste à lire', ne: 'Jeu neuf', list: 'Mes enregistrements'};
+let MIs = null;                                          // série « mots isolés » en cours (null hors série)
+const TITLES = {home: 'Enregistreur RadGent', w1setup: 'Liste à lire', w1run: 'Lecture en cours', w1done: 'Liste à lire', ne: 'Jeu neuf', list: 'Mes enregistrements',
+                mi: 'Mots isolés', mirun: 'Mots isolés', midone: 'Mots isolés'};
 function show(name) {
+  if (name === 'mirun' && !MIs) name = 'home';          // retour du navigateur vers une série déjà finie : accueil
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== 's-' + name;
   state.screen = name;
   $('#ttl').textContent = TITLES[name] || '';
-  $('#back').hidden = name === 'home' || name === 'w1run' || state.recording;
+  $('#back').hidden = name === 'home' || name === 'w1run' || name === 'mirun' || state.recording;
   window.scrollTo(0, 0);
   if (name === 'home') refreshHome();
   if (name === 'list') renderList();
   if (name === 'ne') neEnter();
   if (name === 'w1setup') w1SetupRender(true);
+  if (name === 'mi') miEnter();
 }
 function go(name, how) {
   if (state.recording) return;
@@ -746,14 +810,14 @@ function go(name, how) {
   show(name);
 }
 window.addEventListener('popstate', (e) => {
-  if (state.recording) { try { history.pushState({s: state.screen}, ''); } catch (x) { /* rien */ } return; }
+  if (state.recording || (MIs && state.screen === 'mirun')) { try { history.pushState({s: state.screen}, ''); } catch (x) { /* rien */ } return; }
   show((e.state && e.state.s) || 'home');
 });
 $('#back').addEventListener('click', () => { if (!state.recording) { if (history.state && history.state.s && history.state.s !== 'home') history.back(); else show('home'); } });
 window.addEventListener('beforeunload', (e) => { if (state.recording) { e.preventDefault(); e.returnValue = ''; } });
 
 async function loadRecs() { try { state.recs = await store.recsAll(); } catch (e) { state.recs = []; } return state.recs; }
-function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (cur) s.add(cur.name); return s; }
+function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (cur) s.add(cur.name); if (MIs) s.add(MIs.name); return s; }
 
 async function refreshHome() {
   await loadRecs();
@@ -770,6 +834,7 @@ async function refreshHome() {
 }
 $('#go-w1').addEventListener('click', () => go('w1setup'));
 $('#go-ne').addEventListener('click', () => go('ne'));
+$('#go-mi').addEventListener('click', () => go('mi'));
 $('#go-list').addEventListener('click', () => go('list'));
 $('#version').textContent = 'Version ' + PAGE_VERSION;
 
@@ -786,6 +851,7 @@ function beginRecording(kind, name, meterEl, pauseEl, extra, liveEl) {
   // Synchrone jusqu'à r.prime() : le contexte audio naît pendant le toucher (iOS).
   const r = new Recorder(meter(meterEl));
   if (kind === 'NE') r.maxFrames = Math.floor(T.limitAt * OUT_RATE);   // jamais plus de 480,0 s dans le fichier
+  if (kind === 'MI') r.maxFrames = Math.floor(T.miLimit * OUT_RATE);   // jamais plus de 10,0 s par mot
   pauseEl.hidden = true; pauseEl.innerHTML = '';
   r.prime();
   const c = {kind, name, r, session: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), seq: 0, startedAt: new Date(),
@@ -802,15 +868,14 @@ function beginRecording(kind, name, meterEl, pauseEl, extra, liveEl) {
     r.onLost = () => { if (r.stopped) return; c.interruptions.push({at_s: round3(r.now()), what: 'micro perdu'}); if (c.onLost) c.onLost(); };
     r.onMute = () => pauseOpen(c, 'mute', 'micro coupé par le téléphone (piste « muted » : arrière-plan, appel ou écran verrouillé)');
     r.onUnmute = () => pauseClose(c, 'mute', 'micro rendu par le téléphone');
-    checkpoint(c, true);
-    c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000);
+    if (kind !== 'MI') { checkpoint(c, true); c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000); }   // MI : la série est réécrite après chaque prise
     return c;
   }, (e) => { r.abort(); throw e; });
 }
 const round3 = (x) => Math.round(x * 1000) / 1000;
 function liveNote(c, key, text) { if (c.notes[key] === text) return; c.notes[key] = text; liveRender(c); }
 function liveClear(c, key) { if (!(key in c.notes)) return; delete c.notes[key]; liveRender(c); }
-function liveRender(c) { const t = Object.values(c.notes).join(' '); c.liveEl.textContent = t; c.liveEl.hidden = !t; w1Fit(); }
+function liveRender(c) { const t = Object.values(c.notes).join(' '); c.liveEl.textContent = t; c.liveEl.hidden = !t; w1Fit(); miFit(); }
 function liveChecks(c) {
   // fenêtre récente (3 s) : l'alerte apparaît aussi quand le son disparaît en cours de route, et s'efface quand il revient
   if (c.r.elapsed() > T.silenceWin && c.r.recentPeak() < 1e-4) liveNote(c, 'silence', 'Le micro ne capte aucun son depuis ' + T.silenceWin + ' s. S\'il reste muet (appel, autre application), arrêtez, rechargez la page et réessayez.');
@@ -821,6 +886,7 @@ function partialOf(c) {
                         audio: c.r.audioInfo(), device: deviceInfo(), interruptions: c.interruptions, pauses: c.pauses, page_version: PAGE_VERSION}, c.extra());
 }
 function checkpoint(c, metaOnly) {
+  if (c.kind === 'MI') return;                          // pas de sauvegarde partielle pour un mot isolé (10 s au plus)
   const b = metaOnly ? null : c.r.takeBlock(), seq = b ? c.seq++ : null, p = partialOf(c);
   c.chain = c.chain.then(() => store.chunkPut(c.session, seq, b ? new Blob([b]) : null, p)).catch(() => {
     if (!c.cpFail) { c.cpFail = true; storageBanner('La sauvegarde de sécurité pendant l\'enregistrement échoue (stockage plein ou refusé). Envoyez vos fichiers dès la fin.'); }
@@ -844,11 +910,11 @@ function pauseClose(c, key, how) {
 }
 function pauseBanner(c) {
   const el = c.pauseEl; el.innerHTML = '';
-  if (!Object.keys(c.open).length) { el.hidden = true; w1Fit(); return; }
+  if (!Object.keys(c.open).length) { el.hidden = true; w1Fit(); miFit(); return; }
   el.append(h('b', {}, 'En pause : '), 'le téléphone a coupé le micro (appel, autre application ou écran verrouillé). Ce passage manquera dans l\'audio. ',
     h('button', {class: 'mid primary', 'data-act': 'resume', onclick: () => resumeRec(c)}, 'Reprendre'));
   if (c.open.mute && c.resumeTried) el.append(h('p', {}, 'Le micro est encore coupé par le téléphone. Si rien ne change, arrêtez et refaites la prise.'));
-  el.hidden = false; w1Fit();
+  el.hidden = false; w1Fit(); miFit();
 }
 function resumeRec(c) {
   if (cur !== c || c.r.stopped) return;
@@ -876,7 +942,7 @@ async function stopRecording() {
 async function persist(rec, blob, session) {
   let ok = false;
   try { ok = await store.saveRecording(rec, blob, session); } catch (e) { store.memSave(rec, blob); ok = false; }
-  cur = null; state.recording = false; $('#back').hidden = state.screen === 'home' || state.screen === 'w1run';
+  cur = null; state.recording = false; $('#back').hidden = state.screen === 'home' || state.screen === 'w1run' || state.screen === 'mirun';
   await loadRecs();
   return ok;
 }
@@ -991,7 +1057,7 @@ function w1Fit() {
   while (size > 15 && over() > 0) { size -= 1; el.style.fontSize = size + 'px'; }
   return size;
 }
-window.addEventListener('resize', () => { if (state.screen === 'w1run') w1Fit(); });
+window.addEventListener('resize', () => { if (state.screen === 'w1run') w1Fit(); if (state.screen === 'mirun') miFit(); });
 function w1Advance(first) {
   const w = W; if (!w || w.finishing || !cur) return;
   const now = performance.now();
@@ -1217,6 +1283,266 @@ $('#ne-delyes').addEventListener('click', async () => {
   $('#ne-note').textContent = 'Prise supprimée. Son numéro ' + name + ' ne sera pas réutilisé : la prochaine dictée sera ' + neName(NE.n) + '.'; $('#ne-note').hidden = false;
 });
 
+// ------------------------------------------------------------------------------------------------ Mots isolés (MI)
+// 20 mots fixes, UNE prise par mot : comme une vraie dictée d'un seul mot, le micro s'ouvre au toucher, on dit le mot, on arrête
+// (la page garde encore 0,6 s, comme W1). Deux fichiers par série : MI1.wav = toutes les prises gardées, dans l'ordre, chacune
+// suivie d'exactement 1,0 s de zéros (silence numérique) ; MI1.json = position exacte de chaque prise dans le WAV (silence exclu).
+// La série est réécrite dans le téléphone après chaque prise : une page fermée en route ne perd que la prise en cours.
+const MI_WORDS = ['rechts', 'links', 'beidseits', 'rechts', 'links', 'rechtsseitig', 'linksseitig', 'rechts', 'links', 'beidseits',
+                  'rechts', 'links', 'keine', 'nicht', 'unauffällig', 'regelrecht', 'rechts basal', 'links apikal', 'rechts mehr als links', 'rechts'];
+const MI_ITEMS = MI_WORDS.map((text, i) => ({id: 'MI' + pad2(i + 1), text}));
+const MI_GAP = OUT_RATE;                                 // 1,0 s de zéros après chaque prise
+const MI_HINT = 'Touchez « Enregistrer », attendez que « Arrêter » apparaisse, puis dites le mot.';
+const MI = {series: '1'};                                // réglage de l'écran de départ
+const miBase = (series) => 'MI' + series;
+const plural = (n, one, many) => n + ' ' + (n > 1 ? many : one);
+const fmtSec1 = (s) => (Math.round(s * 10) / 10).toFixed(1).replace('.', ',') + ' s';
+const miCount = (m) => m.takes.filter(Boolean).length;
+function joinInt16(blocks) { let n = 0; for (const b of blocks) n += b.length; const o = new Int16Array(n); let k = 0; for (const b of blocks) { o.set(b, k); k += b.length; } return o; }
+
+function miSetupRender() {
+  for (const b of document.querySelectorAll('#mi-series button')) b.setAttribute('aria-pressed', String(b.dataset.v === MI.series));
+  const base = miBase(MI.series), name = uniqueName(base), note = $('#mi-note');
+  $('#mi-file').textContent = name + '.wav'; $('#mi-file2').textContent = name + '.json';
+  if (name !== base) {
+    const full = state.recs.some((r) => r.kind === 'MI' && sameBlock(r.name, base) && r.complete === true);
+    note.textContent = base + (full ? ' existe déjà' : ' existe déjà (série incomplète)') + ' : la nouvelle série s\'appellera ' + name + '.wav (l\'ancienne est gardée).';
+  } else note.textContent = '';
+  note.hidden = !note.textContent;
+}
+async function miEnter() { MI.series = '1'; miSetupRender(); await loadRecs(); miSetupRender(); }
+for (const b of document.querySelectorAll('#mi-series button')) b.addEventListener('click', () => { MI.series = b.dataset.v; miSetupRender(); });
+
+$('#mi-start').addEventListener('click', () => {
+  if (state.recording || MIs) return;
+  // pas de micro ici : chaque prise ouvre le micro elle-même, au toucher de « Enregistrer »
+  MIs = {series: MI.series, name: uniqueName(miBase(MI.series)), created: new Date(), idx: 0, takes: MI_ITEMS.map(() => null), retakes: MI_ITEMS.map(() => 0),
+         phase: 'ready', starting: false, finishing: false, chain: Promise.resolve(), capture: null, msg: null, hint: null};
+  $('#mi-error').innerHTML = ''; $('#mi-notkept').hidden = true; $('#mi-endconfirm').hidden = true;
+  for (const s of ['#mi-next', '#mi-play', '#mi-redo', '#mi-end']) $(s).disabled = false;
+  go('mirun', 'replace');
+  miShow();
+});
+
+function miInfo(text, kind) { const e = $('#mi-info'); e.textContent = text || ''; e.className = 'info' + (kind ? ' ' + kind : ''); }
+function miShow() {
+  const m = MIs, it = MI_ITEMS[m.idx];
+  m.msg = null;
+  $('#mi-pos').textContent = 'Mot ' + (m.idx + 1) + ' / ' + MI_ITEMS.length; $('#mi-id').textContent = it.id;
+  $('#mi-word').textContent = it.text;
+  $('#mi-next').textContent = m.idx === MI_ITEMS.length - 1 ? 'Terminer la série' : 'Suivant';
+  miPhase(m.takes[m.idx] ? 'stopped' : 'ready');
+}
+// Phases d'un mot : ready (Enregistrer) > recording (Arrêter) > stopped (Suivant, Réécouter, Refaire). Le bouton principal
+// reste à la même place dans les trois phases.
+function miPhase(p) {
+  const m = MIs; m.phase = p;
+  const rec = p === 'recording' || p === 'stopping';
+  $('#mi-progbar').style.width = (miCount(m) / MI_ITEMS.length * 100).toFixed(1) + '%';
+  $('#mi-ready').hidden = p !== 'ready'; $('#mi-recording').hidden = !rec; $('#mi-stopped').hidden = p !== 'stopped';
+  $('#mi-recbar').classList.toggle('idle', !rec);
+  $('#mi-end').hidden = rec;
+  if (rec) $('#mi-endconfirm').hidden = true;
+  if (p !== 'stopped') miPlayReset();
+  if (p === 'ready') miInfo(m.hint || MI_HINT);
+  else if (p === 'recording') miInfo('Dites le mot maintenant.');
+  else if (p === 'stopping') miInfo('');
+  else {
+    const t = m.takes[m.idx];
+    miInfo(m.msg || (t.id + ' : ' + fmtSec1(t.samples.length / OUT_RATE) + (m.kept === false ? '. Prise enregistrée, mais PAS gardée sur le téléphone.' : '. Prise gardée.')),
+           (m.msg || m.kept === false) ? 'warn' : 'ok');
+    // garde anti-toucher : un toucher en trop sur « Arrêter » ne valide ni ne supprime rien
+    const ids = ['#mi-next', '#mi-play', '#mi-redo']; for (const s of ids) $(s).disabled = true;
+    setTimeout(() => { if (MIs === m && !m.finishing) for (const s of ids) $(s).disabled = false; }, T.tapGuardMs);
+  }
+  miFit();
+}
+function miKept(res) {
+  if (MIs) MIs.kept = !!res.ok;
+  const b = $('#mi-notkept');
+  b.textContent = res.ok ? '' : 'Attention : le téléphone ne garde pas cette série (stockage refusé ou plein). Envoyez-la dès la fin avec « Envoyer maintenant » : elle sera perdue si la page se ferme.';
+  b.hidden = res.ok;
+}
+
+$('#mi-rec').addEventListener('click', () => {
+  const m = MIs;
+  if (!m || state.recording || m.phase !== 'ready' || m.starting || m.finishing) return;
+  m.starting = true;
+  const btn = $('#mi-rec');
+  $('#mi-error').innerHTML = ''; $('#mi-time').textContent = '00:00'; $('#mi-endconfirm').hidden = true;
+  btn.disabled = true; btn.textContent = 'Préparation du micro…';
+  let p;
+  try { p = beginRecording('MI', m.name, $('#mi-meter'), $('#mi-pause'), null, $('#mi-live')); } catch (e) { p = Promise.reject(e); }
+  p.then((c) => {
+    m.starting = false; btn.textContent = 'Enregistrer'; btn.disabled = false;
+    m.hint = null; miPhase('recording');
+    c.onLost = () => miStop('lost', 'Le micro a été coupé : la prise est arrêtée et gardée.', 0);
+    c.tick = setInterval(() => {
+      const s = c.r.elapsed(); $('#mi-time').textContent = fmtClock(s); liveChecks(c);
+      // arrêt à la limite ; le plafond de l'enregistreur coupe le fichier à 10,000 s exactement, jamais un échantillon de plus
+      if (m.phase === 'recording' && (s >= T.miLimit || c.r.capped)) miStop('limit', miLimitMsg(), 0);
+    }, 250);
+  }, (e) => {
+    m.starting = false; btn.textContent = 'Enregistrer'; btn.disabled = false;
+    $('#mi-error').innerHTML = ''; $('#mi-error').append(micErrorBox(e));
+  });
+});
+const miLimitMsg = () => 'Arrêt automatique à ' + fmtDur(T.miLimit) + ' : un mot isolé n\'en demande pas plus. Refaites la prise.';
+$('#mi-stop').addEventListener('click', () => miStop('tap', null, T.miTailMs));
+async function miStop(reason, msg, tailMs) {
+  const m = MIs;
+  if (!m || m.phase !== 'recording' || !cur || cur.kind !== 'MI') return;
+  m.phase = 'stopping';
+  const c = cur, btn = $('#mi-stop'), tap = reason === 'tap' ? round3(c.r.elapsed()) : null;
+  btn.disabled = true; miInfo('');
+  // le micro tourne encore 0,6 s après le toucher : la fin du mot n'est pas coupée
+  if (tailMs > 0) { btn.textContent = 'Fin de la prise…'; await sleep(tailMs); }
+  btn.textContent = 'Enregistrement sur le téléphone…';
+  clearInterval(c.tick);
+  const {info} = await stopRecording();
+  cur = null; state.recording = false;
+  btn.disabled = false; btn.textContent = 'Arrêter';
+  const samples = joinInt16(c.r.blocks), i = m.idx, it = MI_ITEMS[i];
+  if (!samples.length) { m.hint = 'La prise est vide. Touchez « Enregistrer » et redites le mot.'; miPhase('ready'); return; }
+  m.takes[i] = {id: it.id, text: it.text, samples, recorded: c.startedAt.toISOString(), tap_s: tap, tail_s: tailMs > 0 ? tailMs / 1000 : 0,
+                stop_reason: reason === 'tap' ? 'arrêt' : (reason === 'limit' ? 'limite de ' + fmtDur(T.miLimit) : 'micro coupé'), capped: !!c.r.capped,
+                pauses: c.pauses.slice(), interruptions: c.interruptions.slice(), peak_dbfs: info.peak_dbfs, rms_dbfs: info.rms_dbfs};
+  m.capture = {capture: info.capture, resampler: info.resampler};
+  const warns = [];
+  if (msg) warns.push(msg); else if (c.r.capped) warns.push(miLimitMsg());
+  if (info.peak_dbfs === null || info.peak_dbfs < -60) warns.push('Presque aucun son capté : vérifiez le micro, puis « Refaire ».');
+  m.msg = warns.join(' ') || null;
+  let res = {ok: false};
+  try { res = await miSave(m); } catch (e) { /* le bandeau « pas gardé » le dit */ }
+  miKept(res);
+  miPhase('stopped');
+}
+
+// Série -> fichiers : WAV de toutes les prises gardées (chacune + 1,0 s de zéros) et JSON des positions.
+function miRecord(m, complete, why) {
+  const list = []; m.takes.forEach((t, i) => { if (t) list.push([t, i]); });
+  let n = 0; for (const [t] of list) n += t.samples.length + MI_GAP;
+  const pcm = new Int16Array(n), rows = []; let o = 0;                       // Int16Array : le silence est exactement 0
+  for (const [t, i] of list) {
+    pcm.set(t.samples, o);
+    rows.push({id: t.id, text: t.text, start_sample: o, end_sample: o + t.samples.length, duration_s: round3(t.samples.length / OUT_RATE),
+               retakes: m.retakes[i], pauses: t.pauses, interruptions: t.interruptions, recorded_utc: t.recorded, tap_s: t.tap_s, tail_s: t.tail_s,
+               stop_reason: t.stop_reason, capped: t.capped, peak_dbfs: t.peak_dbfs, rms_dbfs: t.rms_dbfs});
+    o += t.samples.length + MI_GAP;
+  }
+  const blob = new Blob([wavHeader(n, OUT_RATE), pcm], {type: 'audio/wav'});
+  const cap = m.capture || {};
+  const doc = {schema: 'RADGENT_MI_1', page_version: PAGE_VERSION, file: m.name + '.wav', series: parseInt(m.series, 10),
+    created: m.created.toISOString(), created_local: localIso(m.created), sample_rate: OUT_RATE, channels: 1, bits: 16,
+    complete: !!complete, n_planned: MI_ITEMS.length, n_takes: rows.length, stop_reason: why,
+    layout: 'Chaque prise est suivie d\'exactement silence_after_take_samples zéros (silence numérique, 1,0 s). start_sample et end_sample : position exacte de la prise dans le WAV (end exclu), silence non compris. Une prise refaite remplace l\'ancienne (retakes les compte).',
+    silence_after_take_samples: MI_GAP, takes: rows, capture: cap.capture || null, resampler: cap.resampler || null, device: deviceInfo()};
+  const rec = {name: m.name, kind: 'MI', created: m.created.toISOString(), duration_s: round3(n / OUT_RATE), frames: n, bytes: blob.size, sent: {},
+               json: JSON.stringify(doc, null, 1), complete: !!complete, n_takes: rows.length, interrupted: false, info: {capture: cap.capture || null, resampler: cap.resampler || null}};
+  return {rec, blob};
+}
+// Écrit la série entière (jamais une prise seule) : atomique, et la même série se réécrit à chaque prise. Une série sans prise est effacée.
+async function miWrite(m, complete, why) {
+  const out = {ok: true, rec: null, blob: null}, built = miCount(m) ? miRecord(m, complete, why) : null;
+  store.memRecs.delete(m.name); store.memBlobs.delete(m.name);               // une copie en mémoire plus ancienne est dépassée
+  try {
+    if (built) out.ok = await store.saveRecording(built.rec, built.blob, null); else await store.recDelete(m.name);
+  } catch (e) { out.ok = false; if (built) store.memSave(built.rec, built.blob); }
+  if (built) { out.rec = built.rec; out.blob = built.blob; }
+  try { await loadRecs(); } catch (e) { /* facultatif */ }
+  return out;
+}
+function miQueue(m, fn) { const p = m.chain.then(fn); m.chain = p.catch(() => {}); return p; }
+// écriture après chaque prise : « complète » dès que les 20 mots ont une prise (même si la page se ferme avant « Terminer la série »)
+const miSave = (m) => miQueue(m, () => { const full = miCount(m) === MI_ITEMS.length; return miWrite(m, full, full ? 'fin de la liste' : 'série en cours'); });
+
+function miPlayReset() { const a = $('#mi-audio'); try { a.pause(); } catch (e) { /* rien */ } $('#mi-play').textContent = 'Réécouter'; }
+$('#mi-play').addEventListener('click', () => {
+  const m = MIs, t = m && m.takes[m.idx], a = $('#mi-audio');
+  if (!t) return;
+  if (!a.paused) { miPlayReset(); return; }
+  if (a.dataset.for !== t.recorded) { if (a.src) URL.revokeObjectURL(a.src); a.src = URL.createObjectURL(new Blob([wavHeader(t.samples.length, OUT_RATE), t.samples], {type: 'audio/wav'})); a.dataset.for = t.recorded; }
+  a.currentTime = 0;
+  a.play().then(() => { $('#mi-play').textContent = 'Arrêter la lecture'; }, () => { $('#mi-play').textContent = 'Réécouter'; });
+});
+$('#mi-audio').addEventListener('ended', miPlayReset);
+$('#mi-redo').addEventListener('click', async () => {
+  const m = MIs; if (!m || m.phase !== 'stopped' || m.finishing) return;
+  miPlayReset();
+  m.takes[m.idx] = null; m.retakes[m.idx]++; m.msg = null; m.hint = 'Prise supprimée. Touchez « Enregistrer » pour la refaire.';
+  miPhase('ready');
+  try { miKept(await miSave(m)); } catch (e) { /* rien */ }   // la prise rejetée ne reste pas dans les fichiers
+});
+$('#mi-next').addEventListener('click', () => {
+  const m = MIs; if (!m || m.phase !== 'stopped' || m.finishing) return;
+  if (m.idx >= MI_ITEMS.length - 1) { miFinish(); return; }
+  m.idx++; m.hint = null; miShow();
+});
+$('#mi-end').addEventListener('click', () => {
+  const m = MIs; if (!m || m.finishing || m.starting || m.phase === 'recording' || m.phase === 'stopping') return;
+  const n = miCount(m);
+  $('#mi-endtext').textContent = n ? 'Arrêter ici ? ' + plural(n, 'mot enregistré', 'mots enregistrés') + ' sur ' + MI_ITEMS.length + (n > 1 ? ' sont gardés.' : ' est gardé.') :
+    'Arrêter ici ? Aucun mot n\'est enregistré : rien ne sera gardé.';
+  $('#mi-endconfirm').hidden = false;
+  try { $('#mi-endconfirm').scrollIntoView({block: 'nearest'}); } catch (e) { /* facultatif */ }
+});
+$('#mi-endno').addEventListener('click', () => { $('#mi-endconfirm').hidden = true; });
+$('#mi-endyes').addEventListener('click', () => miFinish());
+let miLast = null;
+async function miFinish() {
+  const m = MIs; if (!m || m.finishing || m.starting || m.phase === 'recording' || m.phase === 'stopping') return;
+  m.finishing = true; miPlayReset(); $('#mi-endconfirm').hidden = true;
+  for (const s of ['#mi-next', '#mi-play', '#mi-redo', '#mi-end']) $(s).disabled = true;
+  const complete = miCount(m) === MI_ITEMS.length;
+  const why = complete ? 'fin de la liste' : 'arrêté avant la fin de la liste';
+  let res = {ok: false, rec: null, blob: null};
+  try { res = await miQueue(m, () => miWrite(m, complete, why)); } catch (e) { /* le texte final le dit */ }
+  MIs = null;
+  miDoneRender(m, res, complete);
+}
+function miDoneRender(m, res, complete) {
+  const n = miCount(m), box = $('#mi-done-warn'); box.innerHTML = '';
+  miLast = res.rec ? {rec: res.rec, blob: res.blob} : null;
+  if (!res.rec) {
+    $('#mi-done-text').textContent = 'Aucun mot enregistré : rien n\'a été gardé.';
+  } else {
+    const redone = m.retakes.reduce((a, b) => a + b, 0);
+    $('#mi-done-text').textContent = res.rec.name + '.wav : ' + plural(n, 'mot enregistré', 'mots enregistrés') + ' sur ' + MI_ITEMS.length + ' (' + fmtDur(res.rec.duration_s) +
+      ' avec les silences), ' + plural(redone, 'prise refaite', 'prises refaites') + '.' + (res.ok ? ' Gardé sur le téléphone.' : '');
+    if (!res.ok) box.append(notSavedBox(res.rec.name));
+    if (!complete) {
+      box.append(h('div', {class: 'banner warn', 'data-act': 'incomplete'}, h('b', {}, 'Série incomplète : '), plural(n, 'mot enregistré', 'mots enregistrés') + ' sur ' + MI_ITEMS.length +
+        '. Une nouvelle série s\'appellera ' + uniqueName(miBase(m.series)) + '.wav (celle-ci reste gardée).'));
+    }
+    const quiet = JSON.parse(res.rec.json).takes.filter((t) => t.peak_dbfs === null || t.peak_dbfs < -60).map((t) => t.id);
+    if (quiet.length) box.append(h('div', {class: 'banner warn'}, 'Presque aucun son sur ' + quiet.join(', ') + ' : vérifiez le micro, puis refaites la série si besoin.'));
+  }
+  $('#mi-send').hidden = !miLast; $('#mi-send-out').innerHTML = '';
+  go('midone', 'replace');
+}
+$('#mi-send').addEventListener('click', (e) => { if (miLast) guarded(e.currentTarget, () => sendFiles(filesOf(miLast.rec, miLast.blob), $('#mi-send-out'), null)); });
+$('#mi-again').addEventListener('click', () => go('mi'));
+$('#mi-tolist').addEventListener('click', () => go('list'));
+
+// Le mot rétrécit (largeur et hauteur de son cadre) ; sur un petit écran, le cadre rétrécit aussi pour que tous les boutons restent visibles.
+function fitWord(el, box) {
+  let size = Math.min(64, Math.max(36, Math.floor(window.innerWidth / 6)));
+  el.style.fontSize = size + 'px';
+  while (size > 22 && (el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().height > box.clientHeight + 1)) { size -= 1; el.style.fontSize = size + 'px'; }
+  return size;
+}
+function miFit() {
+  if (state.screen !== 'mirun') return 0;
+  const box = $('#mi-box'), el = $('#mi-word'); if (!el.textContent) return 0;
+  box.style.height = '';
+  let size = fitWord(el, box), hgt = box.clientHeight;
+  const over = () => { let b = 0; for (const x of document.querySelectorAll('#mi-ready button, #mi-recording button, #mi-stopped button, #mi-end')) {
+                         const r = x.getBoundingClientRect(); if (r.width && r.height && r.bottom > b) b = r.bottom; }
+                       return b + window.scrollY - (window.innerHeight - 4); };
+  while (hgt > 64 && over() > 0) { hgt -= 8; box.style.height = hgt + 'px'; size = fitWord(el, box); }
+  return size;
+}
+
 // ------------------------------------------------------------------------------------------------ Mes enregistrements
 let refTimers = {};
 async function renderList() {
@@ -1240,10 +1566,11 @@ async function renderList() {
   $('#list-out').innerHTML = '';
   listSendAllLabel();
   const box = $('#list-items'); box.innerHTML = '';
-  const ne = recs.filter((r) => r.kind === 'NE'), w1 = recs.filter((r) => r.kind === 'W1');
+  const ne = recs.filter((r) => r.kind === 'NE'), w1 = recs.filter((r) => r.kind === 'W1'), mi = recs.filter((r) => r.kind === 'MI');
   if (!recs.length) box.append(h('p', {class: 'hint'}, 'Aucun enregistrement pour l\'instant.'));
   if (ne.length) { box.append(h('h3', {}, 'Jeu neuf (NE)')); ne.forEach((r) => box.append(itemCard(r))); }
   if (w1.length) { box.append(h('h3', {}, 'Liste à lire (W1)')); w1.forEach((r) => box.append(itemCard(r))); }
+  if (mi.length) { box.append(h('h3', {}, 'Mots isolés (MI)')); mi.forEach((r) => box.append(itemCard(r))); }
 }
 function allUnsentFiles() {
   const out = [];
@@ -1291,7 +1618,8 @@ function itemCard(r) {
   const blob = state.blobs.get(r.name);
   const card = h('article', {class: 'item', 'data-name': r.name});
   const meta = [fmtDur(r.duration_s || 0), fmtDate(r.created), fmtSize(r.bytes || 0)];
-  if (r.kind === 'W1' && r.complete === false) meta.push('incomplet');
+  if (r.kind === 'MI') meta.push(r.n_takes + ' mot' + (r.n_takes > 1 ? 's' : ''));
+  if ((r.kind === 'W1' || r.kind === 'MI') && r.complete === false) meta.push('incomplet');
   if (r.interrupted) meta.push('récupéré après interruption');
   if (r.memOnly) meta.push('PAS gardé sur le téléphone');
   card.append(h('div', {class: 'hd'}, h('span', {class: 'nm'}, r.name), badge(r)), h('div', {class: 'meta'}, meta.join(' · ')));
@@ -1407,7 +1735,8 @@ async function recoverOnce() {
 $('#recover-see').addEventListener('click', () => { $('#recover').hidden = true; go('list'); });
 
 // ------------------------------------------------------------------------------------------------ démarrage
-window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, w1Fit, T, state: () => state, cur: () => cur};
+window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, w1Fit, T, state: () => state, cur: () => cur,
+                 MI_ITEMS, fitWord, miFit, mi: () => MIs};
 (async function boot() {
   try { history.replaceState({s: 'home'}, ''); } catch (e) { /* facultatif */ }
   await store.open();
