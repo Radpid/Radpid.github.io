@@ -191,6 +191,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
   <section id="s-ne" class="screen" hidden>
     <h2>Jeu neuf : dictées libres</h2>
     <div class="slot"><b id="ne-slot">NE001</b><button class="mid" id="ne-edit">Changer le numéro</button></div>
+    <div class="card" id="ne-topic-card"><p class="hint" style="margin:0 0 6px">Sujet proposé pour <b id="ne-topic-num">NE001</b> (<span id="ne-topic-id">S01</span>) : dictez-le en allemand, avec vos mots, comme au travail. Ou un vrai cas de votre journée, sans nom.</p><p id="ne-topic" style="margin:0"></p></div>
     <div id="ne-editbox" hidden>
       <label class="field" for="ne-num">Numéro de la prochaine dictée</label>
       <div class="row2"><input type="number" id="ne-num" inputmode="numeric" min="1" max="999"><button class="mid primary" id="ne-numok">OK</button></div>
@@ -290,7 +291,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 <script>
 'use strict';
 (function () {
-const PAGE_VERSION = '2026-10-08.4';
+const PAGE_VERSION = '2026-10-09.1';
 const OUT_RATE = 16000;
 const REC_LOCK = 'radgent-enregistreur-en-cours';
 // Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
@@ -1150,6 +1151,10 @@ $('#w1-tolist').addEventListener('click', () => go('list'));
 
 // ------------------------------------------------------------------------------------------------ Jeu neuf
 const NE = {n: 1, phase: 'ready', last: null, warned: false, stopping: false};
+const NE_TOPICS = ["Radio thorax face et profil : cœur de taille normale, pas d'infiltrat, culs-de-sac libres, chambre implantable (Port) sous-clavière droite, extrémité en bonne position.", "Scanner thoracique injecté : nodule du lobe supérieur droit de 8 mm (6 mm sur l'examen du 12.03.2025), ganglion médiastinal de 12 mm, pas d'épanchement pleural.", "IRM du rachis lombaire : protrusion discale L4/5 avec rétrécissement foraminal gauche, discopathie L5/S1, pas de sténose canalaire.", "Échographie abdominale : foie de 16,5 cm stéatosique, calcul vésiculaire de 1,2 cm sans cholécystite, reins droit et gauche sans dilatation, rate de 11 cm.", "Scanner cérébral sans injection : pas d'hémorragie, pas d'infarctus récent, ligne médiane en place, leucopathie vasculaire discrète.", "IRM du genou gauche : déchirure de la corne postérieure du ménisque interne, LCA intact, épanchement modéré, kyste de Baker de 2,5 x 1,1 cm.", "Scanner abdomino-pelvien (douleur de la fosse iliaque droite) : appendice de 11 mm infiltré, petite lame liquidienne, pas d'abcès ni de perforation.", "Échographie thyroïdienne : nodule du lobe droit de 14 x 9 x 11 mm, TI-RADS 3 ; lobe gauche sans particularité.", "Angioscanner pulmonaire : embolies segmentaires des lobes inférieurs des deux côtés, rapport VD/VG 0,9, pas d'infarctus pulmonaire.", "IRM de l'épaule droite : rupture partielle du sus-épineux, tendinose, arthrose acromio-claviculaire, bursite sous-acromiale.", "Radio du poignet gauche : fracture de l'extrémité distale du radius, bascule dorsale de 3 mm, marche d'escalier articulaire de 2 mm.", "Scanner du rachis cervical (traumatisme) : pas de fracture de HWK 1 à HWK 7, uncarthrose C5/6, alignement conservé.", "IRM cérébrale : leucopathie Fazekas 2, pas de restriction de diffusion, pas de prise de contraste pathologique.", "Scanner de suivi oncologique : 3 lésions cibles mesurées avant et maintenant (23 → 18 mm, 15 → 12 mm, 31 → 27 mm), métastase hépatique du segment VII de 1,8 cm, pas de nouvelle lésion.", "Scanner pour colique néphrétique : calcul urétéral gauche de 6 mm, densité 1100 HU, dilatation pyélocalicielle grade II, rein droit normal.", "IRM des hanches : ostéonécrose de la tête fémorale droite stade II, coxarthrose bilatérale prédominant à droite.", "Radio de la hanche droite (contrôle) : Duokopf-Prothese en place, pas de liseré, pas de fracture périprothétique.", "Écho-Doppler veineux des membres inférieurs : thrombose de la veine poplitée droite, pas de thrombose à gauche, veines fémorales perméables des deux côtés.", "Dictée très courte, 5 secondes : « Röntgen Thorax: kein Pneumothorax. »", "Dictée où vous vous corrigez naturellement, comme au travail : une mesure (« 12 mm … nein, 14 mm ») et un côté (« links … nein, rechts »).", "Longue dictée (3 à 4 minutes) : scanner thoraco-abdomino-pelvien de bilan d'extension complet, avec technique, résultats organe par organe et conclusion numérotée.", "Dictée avec toutes vos commandes : Punkt, Komma, Doppelpunkt, neuer Absatz, Klammer auf / Klammer zu, Bindestrich, et une énumération 1. 2. 3.", "Dictée pleine de chiffres et d'unités : 120/min, 3 x 2 cm, 0,5 mm, 1,25 cm³, 45°, sténose à 70 %.", "Une dictée de votre choix, dans un endroit bruyant (radio ou télé en fond) ou en parlant plus vite que d'habitude."];
+function neTopicIdx(n) { return ((Math.max(1, n || 1) - 1) % NE_TOPICS.length); }
+function neTopicId(n) { return 'S' + String(neTopicIdx(n) + 1).padStart(2, '0'); }
+
 const neName = (n) => 'NE' + String(n).padStart(3, '0');
 const neNum = (name) => { const m = /^NE(\d+)/.exec(String(name || '')); return m ? parseInt(m[1], 10) : 0; };
 // Numéros déjà utilisés sur ce téléphone (prise gardée, récupérée, supprimée ou en cours) : jamais proposés de nouveau.
@@ -1196,6 +1201,7 @@ function neFree() {
 function neBlocked(n) { return takenNames().has(neName(n)) ? 'exists' : (neUsed().has(n) ? 'used' : ''); }
 function neSlot() {
   $('#ne-slot').textContent = neName(NE.n);
+  $('#ne-topic').textContent = NE_TOPICS[neTopicIdx(NE.n)]; $('#ne-topic-num').textContent = neName(NE.n); $('#ne-topic-id').textContent = neTopicId(NE.n);
   const b = neBlocked(NE.n);
   $('#ne-note').textContent = b === 'exists' ? neName(NE.n) + ' existe déjà sur ce téléphone : choisissez un autre numéro.' :
     (b === 'used' ? neName(NE.n) + ' a déjà servi sur ce téléphone (prise supprimée) : un numéro ne revient jamais. Choisissez-en un autre.' : '');
@@ -1244,7 +1250,7 @@ async function neStop(why) {
   const rec = {name: c.name, kind: 'NE', created: c.startedAt.toISOString(), duration_s: info.duration_s, frames: info.frames, bytes: blob.size,
                sent: {}, ref: '', refOrigin: '', interrupted: false, stop_reason: why || 'arrêt',
                info: {capture: info.capture, resampler: info.resampler, interruptions: c.interruptions, pauses: c.pauses, device: deviceInfo(), page_version: PAGE_VERSION}};
-  rec.json = JSON.stringify(neMetaDoc(rec, {created_local: localIso(c.startedAt), limit_s: T.limitAt, audio: info}), null, 1);
+  rec.json = JSON.stringify(neMetaDoc(rec, {created_local: localIso(c.startedAt), limit_s: T.limitAt, audio: info, topic: neTopicId(parseInt(String(rec.name).slice(2), 10))}), null, 1);
   const ok = await persist(rec, blob, c.session);
   await neMarkUsed(rec.name);                         // le numéro avance dès que la prise est gardée (pas seulement sur « Garder »)
   $('#ne-stop').disabled = false; $('#ne-stop').textContent = 'Arrêter'; NE.stopping = false;
