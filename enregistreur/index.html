@@ -16,6 +16,8 @@
   Source de vérité : radgent-cloud/tools/enregistreur/index.html ; copie identique : radpid.github.io/enregistreur/.
   Les phrases W1 sont insérées par tools/enregistreur/build_sentences.py depuis LISTE_A_LIRE.md (jamais à la main).
   Mots isolés (MI) : 20 mots fixes, une prise par mot, séries 1 à 3, deux fichiers par série (MI1.wav + MI1.json) ; liste dans le code ci-dessous.
+  Énoncés courts (EC) : 92 prises par série (A, B), une prise par énoncé, reprise possible (ECA.wav + ECA.json) ; listes insérées par
+  tools/enregistreur/build_ec.py depuis results/cloud/short_utterances/PLAN_COURT.json (jamais à la main).
   Audio : micro brut (AudioWorklet, repli ScriptProcessor), rééchantillonné à 16 000 Hz par un filtre sinc-Kaiser
   (anti-repliement), WAV PCM 16 bits mono. Stockage : IndexedDB du téléphone. Envoi : partage du téléphone ou
   téléchargement, toujours déclenché par l'utilisateur.
@@ -104,6 +106,11 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 .dl{display:flex;width:100%;margin:8px 0;word-break:break-all}
 .dl.done{opacity:.6}
 .stack > *{margin:8px 0}
+.eckind{margin:4px 0 0;font-size:16px;font-weight:650;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ecbox{height:150px}
+#ec-word{white-space:pre-line}
+#ec-word.cont{text-align:left;font-weight:650;line-height:1.22}
+.info.ecinfo{height:72px;min-height:0;overflow:hidden;font-size:16px;line-height:1.4}
 .err h3{color:inherit;text-transform:none;letter-spacing:0;font-size:19px;margin:0 0 6px}
 .err ol{padding-left:20px;margin:6px 0}
 [hidden]{display:none !important}
@@ -128,6 +135,7 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <button class="big primary" id="go-w1">Liste à lire (test W1)<small>phrases à lire, 2 blocs, 2 jours</small></button>
     <button class="big primary" id="go-ne">Jeu neuf : dictées libres<small>NE001, NE002… sans texte à lire</small></button>
     <button class="big primary" id="go-mi">Mots isolés (rechts, links…)<small>20 mots, une prise par mot</small></button>
+    <button class="big primary" id="go-ec">Énoncés courts (côté, chiffres, ponctuation…)<small>séries A et B, 92 prises chacune, reprise possible</small></button>
     <button class="big" id="go-list">Mes enregistrements<small id="home-count">&nbsp;</small></button>
     <p class="foot">Les fichiers sont gardés dans ce navigateur (pas dans Photos ni dans Fichiers). Ouvrez toujours la page de la même façon : onglet Safari OU icône de l'écran d'accueil, jamais les deux (leurs fichiers sont séparés), et jamais en navigation privée. La page n'envoie rien d'elle-même : c'est vous qui envoyez, avec « Envoyer ».</p>
     <p class="ver" id="version"></p>
@@ -276,6 +284,61 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
     <button class="big" id="mi-tolist">Mes enregistrements</button>
   </section>
 
+  <!-- ============================================================== Énoncés courts : réglages -->
+  <section id="s-ec" class="screen" hidden>
+    <h2>Énoncés courts</h2>
+    <div class="field">Série</div>
+    <div class="seg" id="ec-series"><button type="button" data-v="A" aria-pressed="true">Série A</button><button type="button" data-v="B" aria-pressed="false">Série B</button></div>
+    <p class="file">Fichiers : <b id="ec-file">ECA.wav</b> + <b id="ec-file2">ECA.json</b></p>
+    <p id="ec-note" class="banner warn" hidden></p>
+    <button class="big primary" id="ec-resume" hidden>Reprendre</button>
+    <ul class="rules">
+      <li>92 prises (≈ 8 à 10 min), <b>une prise par énoncé</b> : touchez « Enregistrer », <b>attendez</b> « Arrêter », puis parlez.</li>
+      <li>Le type de sélection est écrit au-dessus de la cible. Dites la cible <b>naturellement, comme au travail</b> ; ponctuation : dites le mot de la commande.</li>
+      <li>2 prises continues : 4 lignes à dire dans l'ordre, avec une pause naturelle d'environ 2 s entre elles.</li>
+      <li>« Arrêter » juste après. « Refaire » remplace la prise. Vous pouvez fermer la page et reprendre plus tard. <b>Aucun nom de patient.</b></li>
+    </ul>
+    <button class="big primary" id="ec-start">Commencer</button>
+  </section>
+
+  <!-- ============================================================== Énoncés courts : une prise par énoncé -->
+  <section id="s-ecrun" class="screen" hidden>
+    <div id="ec-recbar" class="recbar idle"><span class="dot"></span><span id="ec-time">00:00</span><div class="meter"><i id="ec-meter"></i></div></div>
+    <div class="prog"><span id="ec-pos"></span><span id="ec-id"></span></div>
+    <div class="progbar"><i id="ec-progbar"></i></div>
+    <p id="ec-kind" class="eckind"></p>
+    <div class="wordbox ecbox" id="ec-box"><p id="ec-word" class="word" lang="de"></p></div>
+    <p id="ec-info" class="info ecinfo" aria-live="polite"></p>
+    <div id="ec-ready"><button class="big rec" id="ec-rec">Enregistrer</button></div>
+    <div id="ec-recording" hidden><button class="big primary" id="ec-stop">Arrêter</button></div>
+    <div id="ec-stopped" hidden>
+      <button class="big primary" id="ec-next">Suivant</button>
+      <div class="row2"><button class="mid" id="ec-play">Réécouter</button><button class="mid" id="ec-redo">Refaire</button></div>
+      <audio id="ec-audio" preload="none" hidden></audio>
+    </div>
+    <button class="link" id="ec-end">Arrêter ici</button>
+    <div id="ec-endconfirm" class="card warn" hidden>
+      <p id="ec-endtext"></p>
+      <div class="row2"><button class="mid danger-btn" id="ec-endyes">Arrêter la série</button><button class="mid" id="ec-endno">Continuer</button></div>
+    </div>
+    <!-- avertissements SOUS les boutons : le bouton principal ne bouge jamais -->
+    <div id="ec-pause" class="banner warn" hidden></div>
+    <div id="ec-live" class="banner warn" hidden></div>
+    <div id="ec-notkept" class="banner danger" hidden></div>
+    <div id="ec-error"></div>
+  </section>
+
+  <!-- ============================================================== Énoncés courts : fini -->
+  <section id="s-ecdone" class="screen" hidden>
+    <h2>Série enregistrée</h2>
+    <p id="ec-done-text"></p>
+    <div id="ec-done-warn"></div>
+    <button class="big primary" id="ec-send">Envoyer maintenant</button>
+    <div id="ec-send-out" class="stack"></div>
+    <button class="big" id="ec-again">Énoncés courts</button>
+    <button class="big" id="ec-tolist">Mes enregistrements</button>
+  </section>
+
   <!-- ============================================================== Mes enregistrements -->
   <section id="s-list" class="screen" hidden>
     <h2>Mes enregistrements</h2>
@@ -288,15 +351,17 @@ textarea{min-height:120px;font-size:17px;line-height:1.4;resize:vertical}
 </main>
 
 <script id="phrases-w1" type="application/json"><!-- BEGIN_PHRASES -->{"source":"reports/results/own_recordings/LISTE_A_LIRE.md","source_sha256":"31bf24f13b0d2d7fd7362f79c498978c335aad1c2fac96f4a32d61d8af7f6c43","blocks":{"A":[{"id":"A01","label":"Lungenarterienembolie","J1":"Kein Nachweis einer Lungenarterienembolie.","J2":"Die Lungenarterienembolie reicht bis in die Segmentarterien."},{"id":"A02","label":"Pleuraerguss","J1":"Es zeigt sich ein schmaler Pleuraerguss.","J2":"Der Pleuraerguss ist im Verlauf regredient."},{"id":"A03","label":"Pneumothorax","J1":"Kein Pneumothorax nach der Punktion.","J2":"Der Pneumothorax ist nach Drainage nicht mehr nachweisbar."},{"id":"A04","label":"Atelektase","J1":"Basal besteht eine streifige Atelektase.","J2":"Die Atelektase im Mittellappen ist unverändert."},{"id":"A05","label":"Bronchiektasen","J1":"Im Unterlappen finden sich zylindrische Bronchiektasen.","J2":"Bronchiektasen ohne Schleimverlegung."},{"id":"A06","label":"Konsolidierung","J1":"Keine pneumonische Konsolidierung.","J2":"Die Konsolidierung im Oberlappen ist rückläufig."},{"id":"A07","label":"Milchglastrübung","J1":"Peripher zeigt sich eine zarte Milchglastrübung.","J2":"Die Milchglastrübung ist im Verlauf neu aufgetreten."},{"id":"A08","label":"Lymphadenopathie","J1":"Keine mediastinale Lymphadenopathie.","J2":"Die Lymphadenopathie hilär ist grössenstabil."},{"id":"A09","label":"Perikarderguss","J1":"Kein relevanter Perikarderguss.","J2":"Der Perikarderguss ist zirkulär und schmal."},{"id":"A10","label":"Aortendissektion","J1":"Kein Anhalt für eine Aortendissektion.","J2":"Die Aortendissektion beginnt distal der Subclavia."},{"id":"A11","label":"Aortenaneurysma","J1":"Infrarenal besteht ein Aortenaneurysma.","J2":"Das Aortenaneurysma ist teilthrombosiert."},{"id":"A12","label":"Mediastinum","J1":"Das Mediastinum ist mittelständig.","J2":"Im vorderen Mediastinum keine Auffälligkeiten."},{"id":"A13","label":"Zwerchfellhochstand","J1":"Rechtsseitiger Zwerchfellhochstand.","J2":"Der Zwerchfellhochstand ist unverändert."},{"id":"A14","label":"Kardiomegalie","J1":"Es besteht eine Kardiomegalie.","J2":"Keine Kardiomegalie, keine Stauungszeichen."},{"id":"A15","label":"Lungenrundherd","J1":"Ein solitärer Lungenrundherd im Oberlappen.","J2":"Der Lungenrundherd ist seit zwei Jahren grössenkonstant."},{"id":"A16","label":"Hepatomegalie","J1":"Es besteht eine Hepatomegalie.","J2":"Die Hepatomegalie ist bei Steatose bekannt."},{"id":"A17","label":"Splenomegalie","J1":"Keine Splenomegalie.","J2":"Die Splenomegalie ist im Verlauf zunehmend."},{"id":"A18","label":"Cholezystolithiasis","J1":"Es besteht eine Cholezystolithiasis ohne Cholezystitis.","J2":"Bekannte Cholezystolithiasis mit mehreren Konkrementen."},{"id":"A19","label":"Choledocholithiasis","J1":"Kein Nachweis einer Choledocholithiasis.","J2":"Die Choledocholithiasis führt zu einer Gangerweiterung."},{"id":"A20","label":"Pankreatitis","J1":"Zeichen einer ödematösen Pankreatitis.","J2":"Keine Pankreatitis, das Organ ist schlank."},{"id":"A21","label":"Divertikulitis","J1":"Unkomplizierte Divertikulitis im Sigma.","J2":"Die Divertikulitis zeigt keine Abszedierung."},{"id":"A22","label":"Appendizitis","J1":"Bild vereinbar mit einer Appendizitis.","J2":"Die Appendizitis ist ohne Perforation."},{"id":"A23","label":"Hydronephrose","J1":"Keine Hydronephrose.","J2":"Die Hydronephrose ist mittelgradig."},{"id":"A24","label":"Nephrolithiasis","J1":"Beidseitige Nephrolithiasis ohne Stau.","J2":"Die Nephrolithiasis ist unverändert."},{"id":"A25","label":"Pyelonephritis","J1":"Keilförmige Areale passend zu einer Pyelonephritis.","J2":"Die Pyelonephritis zeigt keine Einschmelzung."},{"id":"A26","label":"Nierenbeckenkelchsystem","J1":"Das Nierenbeckenkelchsystem ist nicht gestaut.","J2":"Kontrastmittel im Nierenbeckenkelchsystem."},{"id":"A27","label":"Aszites","J1":"Kein Aszites.","J2":"Der Aszites ist perihepatisch betont."},{"id":"A28","label":"Pneumoperitoneum","J1":"Kein Pneumoperitoneum.","J2":"Das Pneumoperitoneum ist postoperativ erklärbar."},{"id":"A29","label":"Invagination","J1":"Kein Hinweis auf eine Invagination.","J2":"Die Invagination liegt im rechten Unterbauch."},{"id":"A30","label":"Leberzirrhose","J1":"Morphologie einer Leberzirrhose.","J2":"Die Leberzirrhose zeigt eine knotige Oberfläche."},{"id":"A31","label":"Gallenblasenpolyp","J1":"Ein Gallenblasenpolyp ohne Wachstum.","J2":"Der Gallenblasenpolyp ist grössenkonstant."},{"id":"A32","label":"Raumforderung","J1":"Keine Raumforderung im Pankreaskopf.","J2":"Die Raumforderung ist randständig kontrastiert."},{"id":"A33","label":"Kontrastmittelanreicherung","J1":"Keine pathologische Kontrastmittelanreicherung.","J2":"Die Kontrastmittelanreicherung ist ringförmig."},{"id":"A34","label":"Kontrastmittelextravasation","J1":"Kein Nachweis einer Kontrastmittelextravasation.","J2":"Die Kontrastmittelextravasation spricht für eine aktive Blutung."},{"id":"A35","label":"Diffusionsrestriktion","J1":"Keine Diffusionsrestriktion.","J2":"Die Diffusionsrestriktion ist kortikal betont."},{"id":"A36","label":"Subarachnoidalblutung","J1":"Kein Hinweis auf eine Subarachnoidalblutung.","J2":"Die Subarachnoidalblutung betrifft die basalen Zisternen."},{"id":"A37","label":"Subduralhämatom","J1":"Schmales Subduralhämatom frontal.","J2":"Das Subduralhämatom ist chronisch."},{"id":"A38","label":"Hydrozephalus","J1":"Kein Hydrozephalus.","J2":"Der Hydrozephalus ist kommunizierend."},{"id":"A39","label":"Mikroangiopathie","J1":"Zeichen einer Mikroangiopathie.","J2":"Die Mikroangiopathie ist altersentsprechend."},{"id":"A40","label":"Meningeom","J1":"Ein Meningeom an der Falx.","J2":"Das Meningeom ist verkalkt."},{"id":"A41","label":"Glioblastom","J1":"Bild verdächtig auf ein Glioblastom.","J2":"Das Glioblastom zeigt eine ausgedehnte Nekrose."},{"id":"A42","label":"Spondylodiszitis","J1":"Kein Anhalt für eine Spondylodiszitis.","J2":"Die Spondylodiszitis greift auf den Psoas über."},{"id":"A43","label":"Spinalkanalstenose","J1":"Relative Spinalkanalstenose lumbal.","J2":"Die Spinalkanalstenose ist hochgradig."},{"id":"A44","label":"Neuroforamenstenose","J1":"Keine Neuroforamenstenose.","J2":"Die Neuroforamenstenose ist ossär bedingt."},{"id":"A45","label":"Bandscheibenprotrusion","J1":"Breitbasige Bandscheibenprotrusion.","J2":"Die Bandscheibenprotrusion tangiert die Nervenwurzel."},{"id":"A46","label":"Osteochondrose","J1":"Ausgeprägte Osteochondrose zervikal.","J2":"Die Osteochondrose ist erosiv."},{"id":"A47","label":"Spondylolisthesis","J1":"Keine Spondylolisthesis.","J2":"Die Spondylolisthesis ist degenerativ."},{"id":"A48","label":"Knochenmarködem","J1":"Kein Knochenmarködem.","J2":"Das Knochenmarködem ist subchondral."},{"id":"A49","label":"Klavikulafraktur","J1":"Dislozierte Klavikulafraktur.","J2":"Die Klavikulafraktur ist konsolidiert."},{"id":"A50","label":"Akromioklavikulargelenk","J1":"Das Akromioklavikulargelenk ist arthrotisch.","J2":"Kapselverdickung am Akromioklavikulargelenk."},{"id":"A51","label":"Rotatorenmanschette","J1":"Die Rotatorenmanschette ist vollständig erhalten.","J2":"Partialruptur der Rotatorenmanschette."},{"id":"A52","label":"Supraspinatussehne","J1":"Tendinose der Supraspinatussehne.","J2":"Die Supraspinatussehne ist ausgedünnt."},{"id":"A53","label":"Meniskusläsion","J1":"Keine Meniskusläsion.","J2":"Die Meniskusläsion reicht bis an die Oberfläche."},{"id":"A54","label":"Kreuzbandruptur","J1":"Kein Hinweis auf eine Kreuzbandruptur.","J2":"Die Kreuzbandruptur ist komplett."},{"id":"A55","label":"Chondromalazie","J1":"Chondromalazie retropatellar.","J2":"Die Chondromalazie ist fortgeschritten."},{"id":"A56","label":"Gonarthrose","J1":"Mässige Gonarthrose medial.","J2":"Die Gonarthrose ist aktiviert."},{"id":"A57","label":"Koxarthrose","J1":"Beginnende Koxarthrose.","J2":"Die Koxarthrose ist fortgeschritten."},{"id":"A58","label":"Osteolyse","J1":"Keine Osteolyse.","J2":"Die Osteolyse im Beckenkamm ist neu."},{"id":"A59","label":"Osteosynthesematerial","J1":"Das Osteosynthesematerial liegt korrekt.","J2":"Kein Materialbruch am Osteosynthesematerial."},{"id":"A60","label":"Pfortaderthrombose","J1":"Keine Pfortaderthrombose.","J2":"Die Pfortaderthrombose ist partiell."}],"B":[{"id":"B01","label":"kleine / kleiner","J1":"Eine kleine Verkalkung und ein kleiner Polyp.","J2":"Ein kleiner Schatten apikal, eine kleine Einziehung basal."},{"id":"B02","label":"regelrecht / regelrechte","J1":"Regelrechte Weite der Ventrikel, die Mittellinie ist regelrecht.","J2":"Die Gelenkstellung ist regelrecht, regelrechte Darstellung der Bänder."},{"id":"B03","label":"akute / akuten","J1":"Keine akute Blutung, kein Hinweis auf einen akuten Verschluss.","J2":"Keine akute Ischämie, kein Zeichen einer akuten Entzündung."},{"id":"B04","label":"geringe / geringer","J1":"Geringe Flüssigkeit perihepatisch, geringer Luftgehalt im Kolon.","J2":"Geringer Reizzustand und geringe Schwellung der Weichteile."},{"id":"B05","label":"frische / frischen","J1":"Keine frische Blutung, kein Hinweis auf einen frischen Thrombus.","J2":"Frische Einblutung ohne Zeichen einer frischen Ischämie."},{"id":"B06","label":"freie / freien","J1":"Keine freie Luft, kein Nachweis von freien Gasansammlungen.","J2":"Freie Flüssigkeit im Becken, kein Anhalt für einen freien Gelenkkörper."},{"id":"B07","label":"fokale / fokalen","J1":"Keine fokale Verdichtung, kein Nachweis einer fokalen Anreicherung.","J2":"Eine fokale Ausdünnung mit fokalen Signalanhebungen."},{"id":"B08","label":"unauffällig / unauffälliger","J1":"Die Milz ist unauffällig, unauffälliger Pankreaskopf.","J2":"Unauffälliger Aspekt der Nebennieren, die Schilddrüse ist unauffällig."},{"id":"B09","label":"vergrössert / vergrösserte","J1":"Die Leber ist vergrössert, vergrösserte Lymphknoten liegen nicht vor.","J2":"Vergrösserte Schilddrüse, der linke Lappen ist deutlich vergrössert."},{"id":"B10","label":"zentrale / zentralen","J1":"Zentrale Einschmelzung mit Verdickung der zentralen Septen.","J2":"Keine zentrale Nekrose, die zentralen Atemwege sind frei."},{"id":"B11","label":"deutliche / deutlichen","J1":"Deutliche Wandverdickung mit deutlichen Umgebungsreaktionen.","J2":"Eine deutliche Befundbesserung mit deutlichen Restveränderungen."},{"id":"B12","label":"diffuse / diffusen","J1":"Diffuse Verfettung mit diffusen Dichteminderungen.","J2":"Keine diffuse Erkrankung, kein Hinweis auf einen diffusen Befall."},{"id":"B13","label":"knöcherne / knöchernen","J1":"Keine knöcherne Destruktion der knöchernen Thoraxwand.","J2":"Die knöchernen Anteile sind erhalten, die knöcherne Begrenzung ist scharf."},{"id":"B14","label":"ältere / älteren","J1":"Eine ältere Einblutung und Reste einer älteren Operation.","J2":"Im Vergleich zu älteren Aufnahmen ist die ältere Veränderung konstant."},{"id":"B15","label":"Erguss / Ergüsse","J1":"Kein Erguss im Gelenk, frühere Ergüsse sind resorbiert.","J2":"Beidseitige Ergüsse, links ist der Erguss grösser."},{"id":"B16","label":"Zyste / Zysten","J1":"Eine Zyste im Oberpol, weitere Zysten im Unterpol.","J2":"Multiple Zysten in der Leber, die grösste Zyste misst zwei Zentimeter."},{"id":"B17","label":"Läsion / Läsionen","J1":"Eine Läsion im Segment vier, keine weiteren Läsionen.","J2":"Mehrere Läsionen im Marklager, eine Läsion ist neu."},{"id":"B18","label":"Metastase / Metastasen","J1":"Eine solitäre Metastase, keine weiteren Metastasen.","J2":"Neue Metastasen in der Leber, die Metastase im Knochen ist sklerosiert."},{"id":"B19","label":"Herd / Herde","J1":"Ein Herd im Oberlappen, keine weiteren Herde.","J2":"Zwei Herde subpleural, der grössere Herd ist verkalkt."},{"id":"B20","label":"Befund / Befunde","J1":"Der Befund ist rückläufig, die Befunde der Voruntersuchung liegen vor.","J2":"Externe Befunde liegen nicht vor, der Befund bleibt unklar."},{"id":"B21","label":"Rippe / Rippen","J1":"Eine Rippe ist eingebrochen, die übrigen Rippen sind regelhaft.","J2":"Mehrere Rippen mit Kallus, eine Rippe ist disloziert."},{"id":"B22","label":"Wirbelkörper / Wirbelkörpers","J1":"Der Wirbelkörper ist höhengemindert, die Deckplatte des Wirbelkörpers ist eingebrochen.","J2":"Ödem im Bereich des Wirbelkörpers, der Wirbelkörper ist nicht frakturiert."},{"id":"B23","label":"Niere / Nieren","J1":"Die linke Niere ist klein, beide Nieren ohne Stau.","J2":"Nieren orthotop, die rechte Niere zeigt eine Einziehung."},{"id":"B24","label":"Gefäss / Gefässe","J1":"Ein Gefäss ist verschlossen, die übrigen Gefässe sind offen.","J2":"Die Gefässe sind zart, kein Gefäss ist verkalkt."},{"id":"B25","label":"Struktur / Strukturen","J1":"Eine tubuläre Struktur, die übrigen Strukturen regelhaft.","J2":"Die ossären Strukturen sind erhalten, die Struktur des Knorpels ist homogen."},{"id":"B26","label":"vorbekannt / vorbekannte","J1":"Die vorbekannte Verkalkung ist unverändert, der Zustand ist vorbekannt.","J2":"Vorbekannte Operation, das Implantat ist vorbekannt."},{"id":"B27","label":"stabil / stabile","J1":"Der Verlauf ist stabil, stabile Verhältnisse im Becken.","J2":"Stabile Grösse der Knoten, die Situation ist stabil."},{"id":"B28","label":"glatt / glatte","J1":"Die Kontur ist glatt, glatte Begrenzung der Leber.","J2":"Glatte Oberfläche, der Übergang ist glatt."},{"id":"B29","label":"intakt / intakte","J1":"Das Band ist intakt, intakte Gelenkkapsel.","J2":"Intakte Kortikalis, der Knorpel ist intakt."},{"id":"B30","label":"erweitert / erweiterte","J1":"Der Gallengang ist erweitert, erweiterte intrahepatische Gallenwege.","J2":"Erweiterte Dünndarmschlingen, das Kolon ist nicht erweitert."},{"id":"B31","label":"Ileus / Ileum","J1":"Kein Ileus, das terminale Ileum ist zart.","J2":"Wandverdickung im Ileum ohne Zeichen eines Ileus."},{"id":"B32","label":"Infarkt / Infekt","J1":"Kein Infarkt, kein Hinweis auf einen Infekt.","J2":"Der Infekt ist abgeklungen, ein alter Infarkt ist bekannt."},{"id":"B33","label":"Hämatom / Hämangiom","J1":"Kein Hämatom, ein Hämangiom in der Leber.","J2":"Das Hämangiom ist typisch, das Hämatom ist resorbiert."},{"id":"B34","label":"Lipom / Lymphom","J1":"Ein Lipom subkutan, kein Lymphom.","J2":"Verdacht auf ein Lymphom, das Lipom ist bekannt."},{"id":"B35","label":"Myom / Myelom","J1":"Ein Myom im Uterus, kein Hinweis auf ein Myelom.","J2":"Das Myelom ist bekannt, das Myom ist verkalkt."},{"id":"B36","label":"Fibrom / Fibrose","J1":"Ein Fibrom im Weichgewebe, keine Fibrose im Unterlappen.","J2":"Die Fibrose ist basal betont, kein Fibrom."},{"id":"B37","label":"Stenose / Sklerose","J1":"Eine Stenose der Arterie und eine Sklerose der Deckplatte.","J2":"Die Sklerose ist degenerativ, keine Stenose der Karotis."},{"id":"B38","label":"Ulkus / Sulkus","J1":"Ein Ulkus im Magen, der Sulkus ist frei.","J2":"Der Sulkus ist verstrichen, kein Ulkus."},{"id":"B39","label":"hyperdens / hypodens","J1":"Das Areal ist hyperdens, die Umgebung ist hypodens.","J2":"Hypodens im Nativscan, nach Kontrastmittel hyperdens."},{"id":"B40","label":"hyperintens / hypointens","J1":"In T2 hyperintens, in T1 hypointens.","J2":"Das Signal ist hypointens, die Randzone ist hyperintens."},{"id":"B41","label":"Fraktur / Fraktion","J1":"Keine Fraktur nach der dritten Fraktion.","J2":"Die Fraktion wurde verschoben, die Fraktur ist konsolidiert."},{"id":"B42","label":"Abszess / Prozess","J1":"Kein Abszess, kein entzündlicher Prozess.","J2":"Der Prozess ist rückläufig, der Abszess ist drainiert."},{"id":"B43","label":"Kontrast / Kontakt","J1":"Nach Kontrast kein Kontakt zur Pleura.","J2":"Breiter Kontakt zur Leber, kein Kontrast im Lumen."},{"id":"B44","label":"Wand / Rand","J1":"Die Wand ist verdickt, der Rand ist unscharf.","J2":"Der Rand ist scharf, die Wand ist zart."},{"id":"B45","label":"Rinde / Rinne","J1":"Die Rinde ist verschmälert, eine Rinne im Knorpel.","J2":"Eine Rinne an der Oberfläche, die Rinde ist erhalten."},{"id":"B46","label":"Darm / Dorn","J1":"Der Darm ist frei, ein Dorn am Fersenbein.","J2":"Ein plantarer Dorn, der Darm ohne Distension."},{"id":"B47","label":"Netz / Nest","J1":"Das Netz ist verdickt, ein Nest von Verkalkungen.","J2":"Ein Nest im Knochen, das grosse Netz ist frei."},{"id":"B48","label":"Sehne / Vene","J1":"Die Sehne ist verdickt, die Vene ist offen.","J2":"Die Vene ist thrombosiert, die Sehne ist erhalten."},{"id":"B49","label":"Stase / Phase","J1":"Venöse Stase in der späten Phase.","J2":"In der arteriellen Phase keine Stase."},{"id":"B50","label":"Erosion / Arrosion","J1":"Keine Erosion der Kortikalis, keine Arrosion der Arterie.","J2":"Die Arrosion ist ausgedehnt, eine Erosion ist nicht sicher."},{"id":"B51","label":"Fistel / Fissur","J1":"Keine Fistel, eine Fissur der Kortikalis.","J2":"Die Fissur ist nicht disloziert, eine Fistel zur Haut."},{"id":"B52","label":"dichte / leichte","J1":"Eine dichte Verschattung und eine leichte Verdickung.","J2":"Eine leichte Schwellung und eine dichte Kalkablagerung."},{"id":"B53","label":"axial / axillär","J1":"Axial rekonstruiert, axillär reizlose Lymphknoten.","J2":"Axillär ein Knoten, axial gut abgrenzbar."},{"id":"B54","label":"Bulla / Bulbus","J1":"Eine Bulla im Apex, der Bulbus ist reizlos.","J2":"Der Bulbus duodeni ist frei, keine Bulla."},{"id":"B55","label":"Septum / Sputum","J1":"Das Septum ist verdickt, kein Sputum im Bronchus.","J2":"Retiniertes Sputum, das Septum ist mittelständig."},{"id":"B56","label":"Narbe / Nabel","J1":"Eine Narbe am Nabel.","J2":"Der Nabel ist reizlos, die Narbe ist verkalkt."},{"id":"B57","label":"Adenom / Atherom","J1":"Ein Adenom der Nebenniere, ein Atherom der Haut.","J2":"Das Atherom ist entzündet, das Adenom ist lipidreich."},{"id":"B58","label":"Karzinom / Karzinoid","J1":"Kein Karzinom, ein Karzinoid im Dünndarm.","J2":"Das Karzinoid ist bekannt, kein Karzinom."},{"id":"B59","label":"Lunge / Zunge","J1":"Die Lunge ist frei, die Zunge ist symmetrisch.","J2":"Die Zunge ist regelhaft, die Lunge ist belüftet."},{"id":"B60","label":"Hoden / Boden","J1":"Der Hoden ist homogen, der Boden der Orbita ist erhalten.","J2":"Der Boden ist eingebrochen, der Hoden ist regelhaft."}]}}<!-- END_PHRASES --></script>
+<script id="ec-data" type="application/json"><!-- BEGIN_EC -->{"plan":"results/cloud/short_utterances/PLAN_COURT.json","plan_sha256":"4b421a43724b1ced007ec199d478748004102b5b255105a1cc71005abc1d84c4","state":"results/cloud/short_utterances/STATE.json","state_sha256":"6ade1d795b7428fa0b552eae76ad49512ecff05f9edb5fc5b150fbfbed1271ed","n_planned":92,"order":"liste de PLAN_COURT.json prise telle quelle, déjà dans l'ordre d'enregistrement (prises continues à leur place) ; order_index = position de la prise dans la liste de sa série (0 = première)","series":{"A":[{"cat":"PUNCT","context":"PUNCT","prompt":"Fragezeichen","expected":"?","id":"EC089","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neue Zeile","expected":"\n","id":"EC107","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC017","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC028","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"L4/5","expected":"L4/5","id":"EC081","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neue Zeile","expected":"\n","id":"EC095","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"2,5 cm","expected":"2,5 cm","id":"EC061","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC026","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"Infiltrat links basal","expected":"Infiltrat links basal","id":"EC150","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neuer Absatz","expected":"\n\n","id":"EC096","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"13 cm","expected":"13 cm","id":"EC066","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechtsseitig","expected":"rechtsseitig","id":"EC037","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Bindestrich","expected":"-","id":"EC091","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3 mm","expected":"3 mm","id":"EC049","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC032","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"40 mm","expected":"40 mm","id":"EC058","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC031","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"kleiner Erguss links","expected":"kleiner Erguss links","id":"EC136","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"12 mm","expected":"12 mm","id":"EC052","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC020","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"linksseitig","expected":"linksseitig","id":"EC042","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Fragezeichen","expected":"?","id":"EC101","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC018","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC016","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC004","kind":"isolated"},{"cat":"OUT","context":"NUM","prompt":"keine","expected":"keine","id":"EC163","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"16 mm","expected":"16 mm","id":"EC055","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"kein Pleuraerguss","expected":"kein Pleuraerguss","id":"EC124","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer zu","expected":")","id":"EC094","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"keine","expected":"keine","id":"EC154","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC008","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer auf","expected":"(","id":"EC093","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Bindestrich","expected":"-","id":"EC103","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"30 cm","expected":"30 cm","id":"EC067","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"17","expected":"17","id":"EC075","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"LWK 1","expected":"LWK 1","id":"EC084","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"15 mm","expected":"15 mm","id":"EC053","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"200 ml","expected":"200 ml","id":"EC079","kind":"isolated"},{"cat":"OUT","context":"NUM","prompt":"unverändert","expected":"unverändert","id":"EC165","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer auf","expected":"(","id":"EC105","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"linksseitig","expected":"linksseitig","id":"EC041","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neuer Absatz","expected":"\n\n","id":"EC108","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"50 mm","expected":"50 mm","id":"EC054","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"14 mm","expected":"14 mm","id":"EC057","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC029","kind":"isolated"},{"id":"C1","kind":"continuous","context":"FREE","utterances":[{"prompt":"rechts","expected":"rechts","cat":"LAT"},{"prompt":"15 mm","expected":"15 mm","cat":"NUM"},{"prompt":"Punkt","expected":".","cat":"PUNCT"},{"prompt":"kein Erguss","expected":"kein Erguss","cat":"SHORT"}]},{"cat":"PUNCT","context":"PUNCT","prompt":"Doppelpunkt","expected":":","id":"EC099","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Komma","expected":",","id":"EC098","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Komma","expected":",","id":"EC086","kind":"isolated"},{"cat":"OUT","context":"PUNCT","prompt":"Punktion","expected":"Punktion","id":"EC159","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC003","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3,5 cm","expected":"3,5 cm","id":"EC062","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Punkt","expected":".","id":"EC097","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC005","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"Befund unverändert","expected":"Befund unverändert","id":"EC128","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Semikolon","expected":";","id":"EC100","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"rechts basal","expected":"rechts basal","id":"EC121","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Semikolon","expected":";","id":"EC088","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechtsseitig","expected":"rechtsseitig","id":"EC038","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"zentral","expected":"zentral","id":"EC156","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"rechts mehr als links","expected":"rechts mehr als links","id":"EC131","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"70","expected":"70","id":"EC076","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3","expected":"3","id":"EC070","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC027","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"nicht","expected":"nicht","id":"EC153","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Schrägstrich","expected":"/","id":"EC092","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"60 mm","expected":"60 mm","id":"EC056","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"2","expected":"2","id":"EC069","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC015","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC025","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC019","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Ausrufezeichen","expected":"!","id":"EC090","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"0,8 cm","expected":"0,8 cm","id":"EC065","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Schrägstrich","expected":"/","id":"EC104","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC014","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"nicht abgrenzbar","expected":"nicht abgrenzbar","id":"EC126","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"keine Stenose","expected":"keine Stenose","id":"EC125","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"medial","expected":"medial","id":"EC155","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseitig","expected":"beidseitig","id":"EC046","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC030","kind":"isolated"},{"cat":"OUT","context":"PUNCT","prompt":"Kontur","expected":"Kontur","id":"EC160","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Punkt","expected":".","id":"EC085","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseitig","expected":"beidseitig","id":"EC045","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC013","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Ausrufezeichen","expected":"!","id":"EC102","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer zu","expected":")","id":"EC106","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC006","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC001","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC007","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC002","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Doppelpunkt","expected":":","id":"EC087","kind":"isolated"},{"id":"C2","kind":"continuous","context":"FREE","utterances":[{"prompt":"links","expected":"links","cat":"LAT"},{"prompt":"Komma","expected":",","cat":"PUNCT"},{"prompt":"3,5 cm","expected":"3,5 cm","cat":"NUM"},{"prompt":"beidseits basal","expected":"beidseits basal","cat":"SHORT"}]}],"B":[{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC013","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC015","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Doppelpunkt","expected":":","id":"EC099","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"keine","expected":"keine","id":"EC154","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"16 mm","expected":"16 mm","id":"EC055","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"zentral","expected":"zentral","id":"EC156","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3","expected":"3","id":"EC070","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC031","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC032","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC002","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC008","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Ausrufezeichen","expected":"!","id":"EC090","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC004","kind":"isolated"},{"cat":"OUT","context":"PUNCT","prompt":"Kontur","expected":"Kontur","id":"EC160","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC027","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3,5 cm","expected":"3,5 cm","id":"EC062","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer zu","expected":")","id":"EC094","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"15 mm","expected":"15 mm","id":"EC053","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"30 cm","expected":"30 cm","id":"EC067","kind":"isolated"},{"cat":"OUT","context":"PUNCT","prompt":"Punktion","expected":"Punktion","id":"EC159","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neue Zeile","expected":"\n","id":"EC107","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"14 mm","expected":"14 mm","id":"EC057","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Schrägstrich","expected":"/","id":"EC104","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC005","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"0,8 cm","expected":"0,8 cm","id":"EC065","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Komma","expected":",","id":"EC098","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"50 mm","expected":"50 mm","id":"EC054","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer auf","expected":"(","id":"EC105","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"LWK 1","expected":"LWK 1","id":"EC084","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"medial","expected":"medial","id":"EC155","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Fragezeichen","expected":"?","id":"EC089","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"rechts basal","expected":"rechts basal","id":"EC121","kind":"isolated"},{"cat":"OUT","context":"NUM","prompt":"unverändert","expected":"unverändert","id":"EC165","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Ausrufezeichen","expected":"!","id":"EC102","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Doppelpunkt","expected":":","id":"EC087","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"kleiner Erguss links","expected":"kleiner Erguss links","id":"EC136","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC001","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Semikolon","expected":";","id":"EC100","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC020","kind":"isolated"},{"cat":"OUT","context":"LAT","prompt":"nicht","expected":"nicht","id":"EC153","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseitig","expected":"beidseitig","id":"EC046","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"linksseitig","expected":"linksseitig","id":"EC042","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Punkt","expected":".","id":"EC085","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Komma","expected":",","id":"EC086","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"60 mm","expected":"60 mm","id":"EC056","kind":"isolated"},{"id":"C1","kind":"continuous","context":"FREE","utterances":[{"prompt":"rechts","expected":"rechts","cat":"LAT"},{"prompt":"15 mm","expected":"15 mm","cat":"NUM"},{"prompt":"Punkt","expected":".","cat":"PUNCT"},{"prompt":"kein Erguss","expected":"kein Erguss","cat":"SHORT"}]},{"cat":"OUT","context":"NUM","prompt":"keine","expected":"keine","id":"EC163","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"nicht abgrenzbar","expected":"nicht abgrenzbar","id":"EC126","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"17","expected":"17","id":"EC075","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"70","expected":"70","id":"EC076","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC030","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neuer Absatz","expected":"\n\n","id":"EC096","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"L4/5","expected":"L4/5","id":"EC081","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"linksseitig","expected":"linksseitig","id":"EC041","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Bindestrich","expected":"-","id":"EC103","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC029","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"200 ml","expected":"200 ml","id":"EC079","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"2,5 cm","expected":"2,5 cm","id":"EC061","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Bindestrich","expected":"-","id":"EC091","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"40 mm","expected":"40 mm","id":"EC058","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC016","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC019","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Fragezeichen","expected":"?","id":"EC101","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"2","expected":"2","id":"EC069","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC026","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC006","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC028","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Punkt","expected":".","id":"EC097","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Schrägstrich","expected":"/","id":"EC092","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechtsseitig","expected":"rechtsseitig","id":"EC038","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseits","expected":"beidseits","id":"EC025","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"12 mm","expected":"12 mm","id":"EC052","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC018","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer zu","expected":")","id":"EC106","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"beidseitig","expected":"beidseitig","id":"EC045","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC003","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC014","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"kein Pleuraerguss","expected":"kein Pleuraerguss","id":"EC124","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"3 mm","expected":"3 mm","id":"EC049","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechts","expected":"rechts","id":"EC007","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"keine Stenose","expected":"keine Stenose","id":"EC125","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"Infiltrat links basal","expected":"Infiltrat links basal","id":"EC150","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"rechts mehr als links","expected":"rechts mehr als links","id":"EC131","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Semikolon","expected":";","id":"EC088","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"links","expected":"links","id":"EC017","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neue Zeile","expected":"\n","id":"EC095","kind":"isolated"},{"cat":"NUM","context":"NUM","prompt":"13 cm","expected":"13 cm","id":"EC066","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"neuer Absatz","expected":"\n\n","id":"EC108","kind":"isolated"},{"cat":"LAT","context":"LAT","prompt":"rechtsseitig","expected":"rechtsseitig","id":"EC037","kind":"isolated"},{"cat":"PUNCT","context":"PUNCT","prompt":"Klammer auf","expected":"(","id":"EC093","kind":"isolated"},{"cat":"SHORT","context":"FREE","prompt":"Befund unverändert","expected":"Befund unverändert","id":"EC128","kind":"isolated"},{"id":"C2","kind":"continuous","context":"FREE","utterances":[{"prompt":"links","expected":"links","cat":"LAT"},{"prompt":"Komma","expected":",","cat":"PUNCT"},{"prompt":"3,5 cm","expected":"3,5 cm","cat":"NUM"},{"prompt":"beidseits basal","expected":"beidseits basal","cat":"SHORT"}]}]}}<!-- END_EC --></script>
 <script>
 'use strict';
 (function () {
-const PAGE_VERSION = '2026-10-09.2';
+const PAGE_VERSION = '2026-10-10.1';
 const OUT_RATE = 16000;
 const REC_LOCK = 'radgent-enregistreur-en-cours';
 // Limites du produit. window.__ENREG_TEST__ (défini seulement par le test automatique) peut les raccourcir.
 const T = Object.assign({warnAt: 450, limitAt: 480, stopEarly: 0.3, w1Limit: 1200, w1TailMs: 600, checkpointEvery: 4, tapGuardMs: 300,
-                         errGuardMs: 1000, silenceWin: 3, noWorklet: false, staleMs: 30000, miLimit: 10, miTailMs: 600},
+                         errGuardMs: 1000, silenceWin: 3, noWorklet: false, staleMs: 30000, miLimit: 10, miTailMs: 600,
+                         ecLimit: 10, ecContLimit: 30, ecTailMs: 600},
                         (window.__ENREG_TEST__ && typeof window.__ENREG_TEST__ === 'object') ? window.__ENREG_TEST__ : {});
 
 // ------------------------------------------------------------------------------------------------ petits outils
@@ -684,7 +749,7 @@ function neMetaDoc(rec, extra) {
 function neJson(rec) { return rec.json || JSON.stringify(neMetaDoc(rec, {rebuilt: 'prise faite avec une version plus ancienne de la page'}), null, 1); }
 function filesMeta(rec) {
   const s = rec.sent || {}, f = [{name: rec.name + '.wav', type: 'audio/wav', sig: 'wav:' + rec.bytes}];
-  const js = (rec.kind === 'W1' || rec.kind === 'MI') ? rec.json : (rec.kind === 'NE' ? neJson(rec) : null);
+  const js = (rec.kind === 'W1' || rec.kind === 'MI' || rec.kind === 'EC') ? rec.json : (rec.kind === 'NE' ? neJson(rec) : null);
   if (js) f.push({name: rec.name + '.json', type: 'application/json', sig: 'json:' + hash(js), text: js});
   if (rec.kind === 'NE') {
     const t = refText(rec);
@@ -791,20 +856,25 @@ function micErrorBox(e) {
 // ------------------------------------------------------------------------------------------------ écrans
 const state = {screen: 'home', recs: [], blobs: new Map(), recording: false};
 let MIs = null;                                          // série « mots isolés » en cours (null hors série)
+let ECs = null;                                          // série « énoncés courts » en cours (null hors série)
 const TITLES = {home: 'Enregistreur RadGent', w1setup: 'Liste à lire', w1run: 'Lecture en cours', w1done: 'Liste à lire', ne: 'Jeu neuf', list: 'Mes enregistrements',
-                mi: 'Mots isolés', mirun: 'Mots isolés', midone: 'Mots isolés'};
+                mi: 'Mots isolés', mirun: 'Mots isolés', midone: 'Mots isolés', ec: 'Énoncés courts', ecrun: 'Énoncés courts', ecdone: 'Énoncés courts'};
+const noBack = (name) => name === 'home' || name === 'w1run' || name === 'mirun' || name === 'ecrun';
 function show(name) {
   if (name === 'mirun' && !MIs) name = 'home';          // retour du navigateur vers une série déjà finie : accueil
+  if (name === 'ecrun' && !ECs) name = 'home';
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== 's-' + name;
   state.screen = name;
   $('#ttl').textContent = TITLES[name] || '';
-  $('#back').hidden = name === 'home' || name === 'w1run' || name === 'mirun' || state.recording;
+  $('#back').hidden = noBack(name) || state.recording;
   window.scrollTo(0, 0);
   if (name === 'home') refreshHome();
   if (name === 'list') renderList();
   if (name === 'ne') neEnter();
   if (name === 'w1setup') w1SetupRender(true);
   if (name === 'mi') miEnter();
+  if (name === 'ec') ecEnter();
+  if (name === 'ecrun') ecFit();
 }
 function go(name, how) {
   if (state.recording) return;
@@ -812,14 +882,14 @@ function go(name, how) {
   show(name);
 }
 window.addEventListener('popstate', (e) => {
-  if (state.recording || (MIs && state.screen === 'mirun')) { try { history.pushState({s: state.screen}, ''); } catch (x) { /* rien */ } return; }
+  if (state.recording || (MIs && state.screen === 'mirun') || (ECs && state.screen === 'ecrun')) { try { history.pushState({s: state.screen}, ''); } catch (x) { /* rien */ } return; }
   show((e.state && e.state.s) || 'home');
 });
 $('#back').addEventListener('click', () => { if (!state.recording) { if (history.state && history.state.s && history.state.s !== 'home') history.back(); else show('home'); } });
 window.addEventListener('beforeunload', (e) => { if (state.recording) { e.preventDefault(); e.returnValue = ''; } });
 
 async function loadRecs() { try { state.recs = await store.recsAll(); } catch (e) { state.recs = []; } return state.recs; }
-function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (cur) s.add(cur.name); if (MIs) s.add(MIs.name); return s; }
+function takenNames() { const s = new Set(state.recs.map((r) => r.name)); if (cur) s.add(cur.name); if (MIs) s.add(MIs.name); if (ECs) s.add(ECs.name); return s; }
 
 async function refreshHome() {
   await loadRecs();
@@ -833,10 +903,12 @@ async function refreshHome() {
   const n = state.recs.length, un = state.recs.reduce((a, r) => a + unsentOf(r).length, 0);
   $('#home-count').textContent = n ? (n + ' enregistrement' + (n > 1 ? 's' : '') + (un ? ' · ' + un + ' fichier' + (un > 1 ? 's' : '') + ' à envoyer' : ' · tout est partagé')) : 'aucun pour l\'instant';
   $('#go-w1').disabled = !PH;
+  $('#go-ec').disabled = !EC;
 }
 $('#go-w1').addEventListener('click', () => go('w1setup'));
 $('#go-ne').addEventListener('click', () => go('ne'));
 $('#go-mi').addEventListener('click', () => go('mi'));
+$('#go-ec').addEventListener('click', () => go('ec'));
 $('#go-list').addEventListener('click', () => go('list'));
 $('#version').textContent = 'Version ' + PAGE_VERSION;
 
@@ -854,6 +926,7 @@ function beginRecording(kind, name, meterEl, pauseEl, extra, liveEl) {
   const r = new Recorder(meter(meterEl));
   if (kind === 'NE') r.maxFrames = Math.floor(T.limitAt * OUT_RATE);   // jamais plus de 480,0 s dans le fichier
   if (kind === 'MI') r.maxFrames = Math.floor(T.miLimit * OUT_RATE);   // jamais plus de 10,0 s par mot
+  if (kind === 'EC') r.maxFrames = Math.floor(ecLimitNow() * OUT_RATE);  // jamais plus de 10,0 s (isolée) ou 30,0 s (continue)
   pauseEl.hidden = true; pauseEl.innerHTML = '';
   r.prime();
   const c = {kind, name, r, session: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), seq: 0, startedAt: new Date(),
@@ -870,14 +943,14 @@ function beginRecording(kind, name, meterEl, pauseEl, extra, liveEl) {
     r.onLost = () => { if (r.stopped) return; c.interruptions.push({at_s: round3(r.now()), what: 'micro perdu'}); if (c.onLost) c.onLost(); };
     r.onMute = () => pauseOpen(c, 'mute', 'micro coupé par le téléphone (piste « muted » : arrière-plan, appel ou écran verrouillé)');
     r.onUnmute = () => pauseClose(c, 'mute', 'micro rendu par le téléphone');
-    if (kind !== 'MI') { checkpoint(c, true); c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000); }   // MI : la série est réécrite après chaque prise
+    if (kind !== 'MI' && kind !== 'EC') { checkpoint(c, true); c.cpTimer = setInterval(() => checkpoint(c, false), T.checkpointEvery * 1000); }   // MI, EC : la série est réécrite après chaque prise
     return c;
   }, (e) => { r.abort(); throw e; });
 }
 const round3 = (x) => Math.round(x * 1000) / 1000;
 function liveNote(c, key, text) { if (c.notes[key] === text) return; c.notes[key] = text; liveRender(c); }
 function liveClear(c, key) { if (!(key in c.notes)) return; delete c.notes[key]; liveRender(c); }
-function liveRender(c) { const t = Object.values(c.notes).join(' '); c.liveEl.textContent = t; c.liveEl.hidden = !t; w1Fit(); miFit(); }
+function liveRender(c) { const t = Object.values(c.notes).join(' '); c.liveEl.textContent = t; c.liveEl.hidden = !t; w1Fit(); miFit(); ecFit(); }
 function liveChecks(c) {
   // fenêtre récente (3 s) : l'alerte apparaît aussi quand le son disparaît en cours de route, et s'efface quand il revient
   if (c.r.elapsed() > T.silenceWin && c.r.recentPeak() < 1e-4) liveNote(c, 'silence', 'Le micro ne capte aucun son depuis ' + T.silenceWin + ' s. S\'il reste muet (appel, autre application), arrêtez, rechargez la page et réessayez.');
@@ -888,7 +961,7 @@ function partialOf(c) {
                         audio: c.r.audioInfo(), device: deviceInfo(), interruptions: c.interruptions, pauses: c.pauses, page_version: PAGE_VERSION}, c.extra());
 }
 function checkpoint(c, metaOnly) {
-  if (c.kind === 'MI') return;                          // pas de sauvegarde partielle pour un mot isolé (10 s au plus)
+  if (c.kind === 'MI' || c.kind === 'EC') return;      // pas de sauvegarde partielle pour une prise courte (30 s au plus)
   const b = metaOnly ? null : c.r.takeBlock(), seq = b ? c.seq++ : null, p = partialOf(c);
   c.chain = c.chain.then(() => store.chunkPut(c.session, seq, b ? new Blob([b]) : null, p)).catch(() => {
     if (!c.cpFail) { c.cpFail = true; storageBanner('La sauvegarde de sécurité pendant l\'enregistrement échoue (stockage plein ou refusé). Envoyez vos fichiers dès la fin.'); }
@@ -912,11 +985,11 @@ function pauseClose(c, key, how) {
 }
 function pauseBanner(c) {
   const el = c.pauseEl; el.innerHTML = '';
-  if (!Object.keys(c.open).length) { el.hidden = true; w1Fit(); miFit(); return; }
+  if (!Object.keys(c.open).length) { el.hidden = true; w1Fit(); miFit(); ecFit(); return; }
   el.append(h('b', {}, 'En pause : '), 'le téléphone a coupé le micro (appel, autre application ou écran verrouillé). Ce passage manquera dans l\'audio. ',
     h('button', {class: 'mid primary', 'data-act': 'resume', onclick: () => resumeRec(c)}, 'Reprendre'));
   if (c.open.mute && c.resumeTried) el.append(h('p', {}, 'Le micro est encore coupé par le téléphone. Si rien ne change, arrêtez et refaites la prise.'));
-  el.hidden = false; w1Fit(); miFit();
+  el.hidden = false; w1Fit(); miFit(); ecFit();
 }
 function resumeRec(c) {
   if (cur !== c || c.r.stopped) return;
@@ -944,7 +1017,7 @@ async function stopRecording() {
 async function persist(rec, blob, session) {
   let ok = false;
   try { ok = await store.saveRecording(rec, blob, session); } catch (e) { store.memSave(rec, blob); ok = false; }
-  cur = null; state.recording = false; $('#back').hidden = state.screen === 'home' || state.screen === 'w1run' || state.screen === 'mirun';
+  cur = null; state.recording = false; $('#back').hidden = noBack(state.screen);
   await loadRecs();
   return ok;
 }
@@ -1059,7 +1132,7 @@ function w1Fit() {
   while (size > 15 && over() > 0) { size -= 1; el.style.fontSize = size + 'px'; }
   return size;
 }
-window.addEventListener('resize', () => { if (state.screen === 'w1run') w1Fit(); if (state.screen === 'mirun') miFit(); });
+window.addEventListener('resize', () => { if (state.screen === 'w1run') w1Fit(); if (state.screen === 'mirun') miFit(); if (state.screen === 'ecrun') ecFit(); });
 function w1Advance(first) {
   const w = W; if (!w || w.finishing || !cur) return;
   const now = performance.now();
@@ -1554,6 +1627,346 @@ function miFit() {
   return size;
 }
 
+// ------------------------------------------------------------------------------------------------ Énoncés courts (EC)
+// Version courte du protocole (results/cloud/short_utterances/PLAN_COURT.json, sous-ensemble du STATE gelé) : 92 prises par série
+// (A, B), UNE prise par énoncé, comme MI (le micro s'ouvre au toucher « Enregistrer » ; la page garde encore 0,6 s après
+// « Arrêter »). Les listes (bloc #ec-data) sont écrites par tools/enregistreur/build_ec.py : la liste du plan TELLE QUELLE, déjà dans
+// l'ordre d'enregistrement (prises continues à leur place) ; order_index = position dans la liste. Deux fichiers par série : ECA.wav = toutes les prises
+// gardées dans l'ordre de la liste, chacune suivie d'exactement 1,0 s de zéros ; ECA.json (RADGENT_EC_1) = position exacte de
+// chaque prise. La série est réécrite dans le téléphone après chaque prise ; une série incomplète se REPREND (mêmes fichiers) :
+// les prises gardées sont relues dans le WAV et le JSON stockés (start_sample / end_sample), on repart à la première manquante.
+// L'audio de chaque prise commence à l'ouverture du micro (rien n'est coupé avant la parole : c'est le pré-roulage réel).
+const EC = (function () {
+  try {
+    const t = document.getElementById('ec-data').textContent.replace('<!-- BEGIN_EC -->', '').replace('<!-- END_EC -->', '').trim();
+    const p = JSON.parse(t);
+    return (p && p.series && p.series.A && p.series.B && p.series.A.length === p.n_planned && p.series.B.length === p.n_planned) ? p : null;
+  } catch (e) { return null; }
+})();
+const EC_GAP = OUT_RATE;                                 // 1,0 s de zéros après chaque prise
+const EC_SCHEMA = 'RADGENT_EC_1';
+const EC_KIND = {LAT: 'Sélection : côté', NUM: 'Sélection : nombre', PUNCT: 'Sélection : ponctuation', FREE: 'Pas de sélection (texte libre)'};
+const EC_SAY = 'Dites-le naturellement, comme au travail.', EC_SAY_PUNCT = 'Dites le mot de la commande.';
+const EC_SAY_CONT = 'Dites les 4 lignes dans l\'ordre, avec une pause naturelle d\'environ 2 s entre elles.';
+const EC_HINT = 'Touchez « Enregistrer », attendez « Arrêter », puis parlez.';
+const EC_BOX_MAX = 170, EC_BOX_MIN = 64;                 // cadre de la cible : même hauteur pour toutes les prises et toutes les phases
+const ECset = {series: 'A'};                             // réglage de l'écran de départ
+const ecBase = (series) => 'EC' + series;
+const ecList = (series) => EC.series[series];
+const ecCount = (e) => e.takes.filter(Boolean).length;
+const ecItem = () => (ECs ? ecList(ECs.series)[ECs.idx] : null);
+function ecLimitNow() { const it = ecItem(); return (it && it.kind === 'continuous') ? T.ecContLimit : T.ecLimit; }
+const ecSay = (it) => it.kind === 'continuous' ? EC_SAY_CONT : (it.cat === 'PUNCT' ? EC_SAY_PUNCT : EC_SAY);
+// Le texte affiché est TOUJOURS le prompt (jamais expected, qui peut être « \n » pour « neue Zeile »).
+const ecText = (it) => it.kind === 'continuous' ? it.utterances.map((u) => u.prompt).join('\n') : it.prompt;
+
+// Séries incomplètes de ce téléphone qu'on peut reprendre : même série, même protocole (state_sha256), fichiers gardés.
+function ecResumable(series) {
+  if (!EC) return null;
+  const base = ecBase(series);
+  const list = state.recs.filter((r) => r.kind === 'EC' && sameBlock(r.name, base) && r.complete !== true && !r.memOnly).filter((r) => {
+    try { const d = JSON.parse(r.json); return d.schema === EC_SCHEMA && d.series === series && d.plan_sha256 === EC.plan_sha256 && d.state_sha256 === EC.state_sha256; } catch (e) { return false; }
+  });
+  list.sort((a, b) => (a.created < b.created ? 1 : -1));                  // la plus récente
+  return list[0] || null;
+}
+function ecSetupRender() {
+  for (const b of document.querySelectorAll('#ec-series button')) b.setAttribute('aria-pressed', String(b.dataset.v === ECset.series));
+  const base = ecBase(ECset.series), name = uniqueName(base), note = $('#ec-note'), inc = ecResumable(ECset.series), n = EC ? EC.n_planned : 0;
+  $('#ec-file').textContent = name + '.wav'; $('#ec-file2').textContent = name + '.json';
+  if (inc) note.textContent = inc.name + ' est incomplète (' + inc.n_takes + ' / ' + n + ') : « Reprendre » la continue dans les mêmes fichiers. « Nouvelle série » commence ' + name + '.wav (l\'ancienne est gardée).';
+  else if (name !== base) note.textContent = base + ' existe déjà : la nouvelle série s\'appellera ' + name + '.wav (l\'ancienne est gardée).';
+  else note.textContent = '';
+  note.hidden = !note.textContent;
+  const rb = $('#ec-resume');
+  rb.hidden = !inc; rb.dataset.name = inc ? inc.name : '';
+  rb.textContent = inc ? 'Reprendre ' + inc.name + ' (' + inc.n_takes + ' / ' + n + ')' : 'Reprendre';
+  const sb = $('#ec-start');
+  sb.textContent = inc ? 'Nouvelle série' : 'Commencer'; sb.classList.toggle('primary', !inc);
+}
+async function ecEnter() { ECset.series = 'A'; $('#ec-error').innerHTML = ''; ecSetupRender(); await loadRecs(); ecSetupRender(); }
+for (const b of document.querySelectorAll('#ec-series button')) b.addEventListener('click', () => { ECset.series = b.dataset.v; ecSetupRender(); });
+
+function ecNew(series, name, created) {
+  const list = ecList(series);
+  return {series, name, created, idx: 0, takes: list.map(() => null), retakes: list.map(() => 0), sessions: [],
+          phase: 'ready', starting: false, finishing: false, chain: Promise.resolve(), capture: null, msg: null, hint: null};
+}
+function ecOpen(e, fromTake) {
+  e.sessions.push({start_utc: new Date().toISOString(), page_version: PAGE_VERSION, from_take: fromTake});
+  ECs = e;
+  $('#ec-error').innerHTML = ''; $('#ec-notkept').hidden = true; $('#ec-endconfirm').hidden = true;
+  for (const s of ['#ec-next', '#ec-play', '#ec-redo', '#ec-end']) $(s).disabled = false;
+  go('ecrun', 'replace');
+  ecShow();
+}
+$('#ec-start').addEventListener('click', () => {
+  if (state.recording || ECs || !EC) return;
+  // pas de micro ici : chaque prise ouvre le micro elle-même, au toucher de « Enregistrer »
+  ecOpen(ecNew(ECset.series, uniqueName(ecBase(ECset.series)), new Date()), 0);
+});
+// Reprise : les prises gardées sont relues dans le WAV stocké, aux positions de son JSON ; on repart à la première prise manquante.
+$('#ec-resume').addEventListener('click', async (ev) => {
+  if (state.recording || ECs || !EC) return;
+  const btn = ev.currentTarget, rec = state.recs.find((r) => r.name === btn.dataset.name);
+  if (!rec) return;
+  btn.disabled = true;
+  try {
+    const doc = JSON.parse(rec.json), list = ecList(doc.series), blob = await store.blobGet(rec.name);
+    if (!blob || doc.schema !== EC_SCHEMA || doc.plan_sha256 !== EC.plan_sha256 || doc.state_sha256 !== EC.state_sha256 || !list) throw codeErr('Mismatch');
+    const pcm = new Int16Array((await blob.arrayBuffer()).slice(44));                   // en-tête WAV de 44 octets (wavHeader)
+    const e = ecNew(doc.series, rec.name, new Date(doc.created));
+    e.sessions = Array.isArray(doc.sessions) ? doc.sessions.slice() : [];
+    e.capture = {capture: doc.capture || null, resampler: doc.resampler || null};
+    for (const t of doc.takes) {
+      const i = t.order_index;
+      if (!list[i] || list[i].id !== t.id || !(t.end_sample > t.start_sample) || t.end_sample > pcm.length) throw codeErr('Mismatch');
+      e.takes[i] = {samples: pcm.slice(t.start_sample, t.end_sample), recorded: t.recorded_utc, tap_s: t.tap_s, tail_s: t.tail_s, stop_reason: t.stop_reason,
+                    capped: t.capped, pauses: t.pauses || [], interruptions: t.interruptions || [], peak_dbfs: t.peak_dbfs, rms_dbfs: t.rms_dbfs};
+      e.retakes[i] = t.retakes || 0;
+    }
+    e.idx = e.takes.findIndex((t) => !t); if (e.idx < 0) e.idx = list.length - 1;
+    ecOpen(e, e.idx);
+  } catch (err) {
+    $('#ec-note').textContent = 'Impossible de reprendre ' + rec.name + ' (fichiers illisibles ou d\'un autre protocole). Elle reste gardée ; touchez « Nouvelle série ».';
+    $('#ec-note').hidden = false;
+  } finally { btn.disabled = false; }
+});
+
+function ecInfo(text, kind) { const el = $('#ec-info'); el.textContent = text || ''; el.className = 'info ecinfo' + (kind ? ' ' + kind : ''); ecInfoFit(); }
+function ecInfoFit() {                                   // hauteur fixe : le texte rétrécit, le bouton principal ne bouge pas
+  const el = $('#ec-info'); let size = 16; el.style.fontSize = size + 'px';
+  while (size > 11 && el.scrollHeight > el.clientHeight + 1) { size -= 1; el.style.fontSize = size + 'px'; }
+}
+function ecShow() {
+  const e = ECs, list = ecList(e.series), it = list[e.idx];
+  e.msg = null;
+  $('#ec-pos').textContent = 'Prise ' + (e.idx + 1) + ' / ' + list.length; $('#ec-id').textContent = it.id;
+  $('#ec-kind').textContent = EC_KIND[it.context] || EC_KIND.FREE;
+  const w = $('#ec-word'); w.textContent = ecText(it); w.classList.toggle('cont', it.kind === 'continuous');
+  $('#ec-next').textContent = e.idx === list.length - 1 ? 'Terminer la série' : 'Suivant';
+  ecPhase(e.takes[e.idx] ? 'stopped' : 'ready');
+}
+// Phases d'une prise : ready (Enregistrer) > recording (Arrêter) > stopped (Suivant, Réécouter, Refaire). Le bouton principal
+// reste à la même place dans les trois phases et pour toutes les prises.
+function ecPhase(p) {
+  const e = ECs; e.phase = p;
+  const rec = p === 'recording' || p === 'stopping', it = ecItem();
+  $('#ec-progbar').style.width = (ecCount(e) / ecList(e.series).length * 100).toFixed(1) + '%';
+  $('#ec-ready').hidden = p !== 'ready'; $('#ec-recording').hidden = !rec; $('#ec-stopped').hidden = p !== 'stopped';
+  $('#ec-recbar').classList.toggle('idle', !rec);
+  $('#ec-end').hidden = rec;
+  if (rec) $('#ec-endconfirm').hidden = true;
+  if (p !== 'stopped') ecPlayReset();
+  if (p === 'ready') ecInfo((e.hint || EC_HINT) + ' ' + ecSay(it));
+  else if (p === 'recording') ecInfo(ecSay(it));
+  else if (p === 'stopping') ecInfo('');
+  else {
+    const t = e.takes[e.idx];
+    ecInfo(e.msg || (it.id + ' : ' + fmtSec1(t.samples.length / OUT_RATE) + (e.kept === false ? '. Prise enregistrée, mais PAS gardée sur le téléphone.' : '. Prise gardée.')),
+           (e.msg || e.kept === false) ? 'warn' : 'ok');
+    // garde anti-toucher : un toucher en trop sur « Arrêter » ne valide ni ne supprime rien
+    const ids = ['#ec-next', '#ec-play', '#ec-redo']; for (const s of ids) $(s).disabled = true;
+    setTimeout(() => { if (ECs === e && !e.finishing) for (const s of ids) $(s).disabled = false; }, T.tapGuardMs);
+  }
+  ecFit();
+}
+function ecKept(res) {
+  if (ECs) ECs.kept = !!res.ok;
+  const b = $('#ec-notkept');
+  b.textContent = res.ok ? '' : 'Attention : le téléphone ne garde pas cette série (stockage refusé ou plein). Envoyez-la dès la fin avec « Envoyer maintenant » : elle sera perdue si la page se ferme.';
+  b.hidden = res.ok;
+}
+
+$('#ec-rec').addEventListener('click', () => {
+  const e = ECs;
+  if (!e || state.recording || e.phase !== 'ready' || e.starting || e.finishing) return;
+  e.starting = true;
+  const btn = $('#ec-rec'), limit = ecLimitNow();
+  $('#ec-error').innerHTML = ''; $('#ec-time').textContent = '00:00'; $('#ec-endconfirm').hidden = true;
+  btn.disabled = true; btn.textContent = 'Préparation du micro…';
+  let p;
+  try { p = beginRecording('EC', e.name, $('#ec-meter'), $('#ec-pause'), null, $('#ec-live')); } catch (err) { p = Promise.reject(err); }
+  p.then((c) => {
+    e.starting = false; btn.textContent = 'Enregistrer'; btn.disabled = false;
+    e.hint = null; ecPhase('recording');
+    c.onLost = () => ecStop('lost', 'Le micro a été coupé : la prise est arrêtée et gardée.', 0);
+    c.tick = setInterval(() => {
+      const s = c.r.elapsed(); $('#ec-time').textContent = fmtClock(s); liveChecks(c);
+      // arrêt à la limite ; le plafond de l'enregistreur coupe le fichier à la limite exacte, jamais un échantillon de plus
+      if (e.phase === 'recording' && (s >= limit || c.r.capped)) ecStop('limit', ecLimitMsg(limit), 0);
+    }, 250);
+  }, (err) => {
+    e.starting = false; btn.textContent = 'Enregistrer'; btn.disabled = false;
+    $('#ec-error').innerHTML = ''; $('#ec-error').append(micErrorBox(err));
+  });
+});
+const ecLimitMsg = (limit) => 'Arrêt automatique à ' + fmtDur(limit) + ' : cette prise n\'en demande pas plus. Refaites-la.';
+$('#ec-stop').addEventListener('click', () => ecStop('tap', null, T.ecTailMs));
+async function ecStop(reason, msg, tailMs) {
+  const e = ECs;
+  if (!e || e.phase !== 'recording' || !cur || cur.kind !== 'EC') return;
+  e.phase = 'stopping';
+  const c = cur, btn = $('#ec-stop'), tap = reason === 'tap' ? round3(c.r.elapsed()) : null, limit = c.r.maxFrames / OUT_RATE;
+  btn.disabled = true; ecInfo('');
+  // le micro tourne encore 0,6 s après le toucher : la fin de l'énoncé n'est pas coupée
+  if (tailMs > 0) { btn.textContent = 'Fin de la prise…'; await sleep(tailMs); }
+  btn.textContent = 'Enregistrement sur le téléphone…';
+  clearInterval(c.tick);
+  const {info} = await stopRecording();
+  cur = null; state.recording = false;
+  btn.disabled = false; btn.textContent = 'Arrêter';
+  const samples = joinInt16(c.r.blocks), i = e.idx;
+  if (!samples.length) { e.hint = 'La prise est vide. Touchez « Enregistrer » et recommencez.'; ecPhase('ready'); return; }
+  e.takes[i] = {samples, recorded: c.startedAt.toISOString(), tap_s: tap, tail_s: tailMs > 0 ? tailMs / 1000 : 0,
+                stop_reason: reason === 'tap' ? 'arrêt' : (reason === 'limit' ? 'limite de ' + fmtDur(limit) : 'micro coupé'), capped: !!c.r.capped,
+                pauses: c.pauses.slice(), interruptions: c.interruptions.slice(), peak_dbfs: info.peak_dbfs, rms_dbfs: info.rms_dbfs};
+  e.capture = {capture: info.capture, resampler: info.resampler};
+  const warns = [];
+  if (msg) warns.push(msg); else if (c.r.capped) warns.push(ecLimitMsg(limit));
+  if (info.peak_dbfs === null || info.peak_dbfs < -60) warns.push('Presque aucun son capté : vérifiez le micro, puis « Refaire ».');
+  e.msg = warns.join(' ') || null;
+  let res = {ok: false};
+  try { res = await ecSave(e); } catch (err) { /* le bandeau « pas gardé » le dit */ }
+  ecKept(res);
+  ecPhase('stopped');
+}
+
+// Série -> fichiers : WAV de toutes les prises gardées, dans l'ordre de la liste (chacune + 1,0 s de zéros), et JSON des positions.
+function ecRecord(e, complete, why) {
+  const items = ecList(e.series), list = []; e.takes.forEach((t, i) => { if (t) list.push([t, i]); });
+  let n = 0; for (const [t] of list) n += t.samples.length + EC_GAP;
+  const pcm = new Int16Array(n), rows = []; let o = 0;                       // Int16Array : le silence est exactement 0
+  for (const [t, i] of list) {
+    const it = items[i];
+    pcm.set(t.samples, o);
+    const row = {id: it.id, kind: it.kind, cat: it.kind === 'continuous' ? 'CONT' : it.cat, context: it.context};
+    if (it.kind === 'continuous') row.utterances = it.utterances.map((u) => ({prompt: u.prompt, expected: u.expected, cat: u.cat}));
+    else { row.prompt = it.prompt; row.expected = it.expected; }
+    Object.assign(row, {order_index: i, start_sample: o, end_sample: o + t.samples.length, duration_s: round3(t.samples.length / OUT_RATE),
+      retakes: e.retakes[i], pauses: t.pauses, interruptions: t.interruptions, recorded_utc: t.recorded, tap_s: t.tap_s, tail_s: t.tail_s,
+      stop_reason: t.stop_reason, capped: t.capped, peak_dbfs: t.peak_dbfs, rms_dbfs: t.rms_dbfs});
+    rows.push(row);
+    o += t.samples.length + EC_GAP;
+  }
+  const blob = new Blob([wavHeader(n, OUT_RATE), pcm], {type: 'audio/wav'});
+  const cap = e.capture || {};
+  const doc = {schema: EC_SCHEMA, page_version: PAGE_VERSION, file: e.name + '.wav', series: e.series, plan: EC.plan, plan_sha256: EC.plan_sha256,
+    state: EC.state, state_sha256: EC.state_sha256,
+    created: e.created.toISOString(), created_local: localIso(e.created), sample_rate: OUT_RATE, channels: 1, bits: 16,
+    complete: !!complete, n_planned: items.length, n_takes: rows.length, stop_reason: why,
+    layout: 'Prises gardées dans l\'ordre de la liste de la série (order_index), chacune suivie d\'exactement silence_after_take_samples zéros (silence numérique, 1,0 s). start_sample et end_sample : position exacte de la prise dans le WAV (end exclu), silence non compris. L\'audio de chaque prise commence à l\'ouverture du micro (pré-roulage réel, rien n\'est coupé). tap_s : toucher « Arrêter » en secondes depuis le début de la prise (null si arrêt automatique). Une prise refaite remplace l\'ancienne (retakes les compte).',
+    order: EC.order, silence_after_take_samples: EC_GAP, sessions: e.sessions,
+    capture: cap.capture || null, resampler: cap.resampler || null, device: deviceInfo(), takes: rows};
+  const rec = {name: e.name, kind: 'EC', created: e.created.toISOString(), duration_s: round3(n / OUT_RATE), frames: n, bytes: blob.size, sent: {},
+               json: JSON.stringify(doc, null, 1), complete: !!complete, n_takes: rows.length, n_planned: items.length, interrupted: false,
+               info: {capture: cap.capture || null, resampler: cap.resampler || null}};
+  return {rec, blob};
+}
+// Écrit la série entière (jamais une prise seule) : atomique, et la même série se réécrit à chaque prise. Une série sans prise est effacée.
+async function ecWrite(e, complete, why) {
+  const out = {ok: true, rec: null, blob: null}, built = ecCount(e) ? ecRecord(e, complete, why) : null;
+  store.memRecs.delete(e.name); store.memBlobs.delete(e.name);               // une copie en mémoire plus ancienne est dépassée
+  try {
+    if (built) out.ok = await store.saveRecording(built.rec, built.blob, null); else await store.recDelete(e.name);
+  } catch (err) { out.ok = false; if (built) store.memSave(built.rec, built.blob); }
+  if (built) { out.rec = built.rec; out.blob = built.blob; }
+  try { await loadRecs(); } catch (err) { /* facultatif */ }
+  return out;
+}
+function ecQueue(e, fn) { const p = e.chain.then(fn); e.chain = p.catch(() => {}); return p; }
+// écriture après chaque prise : « complète » dès que toutes les prises de la liste existent (même si la page se ferme avant « Terminer la série »)
+const ecSave = (e) => ecQueue(e, () => { const full = ecCount(e) === ecList(e.series).length; return ecWrite(e, full, full ? 'fin de la liste' : 'série en cours'); });
+
+function ecPlayReset() { const a = $('#ec-audio'); try { a.pause(); } catch (e) { /* rien */ } $('#ec-play').textContent = 'Réécouter'; }
+$('#ec-play').addEventListener('click', () => {
+  const e = ECs, t = e && e.takes[e.idx], a = $('#ec-audio');
+  if (!t) return;
+  if (!a.paused) { ecPlayReset(); return; }
+  if (a.dataset.for !== t.recorded) { if (a.src) URL.revokeObjectURL(a.src); a.src = URL.createObjectURL(new Blob([wavHeader(t.samples.length, OUT_RATE), t.samples], {type: 'audio/wav'})); a.dataset.for = t.recorded; }
+  a.currentTime = 0;
+  a.play().then(() => { $('#ec-play').textContent = 'Arrêter la lecture'; }, () => { $('#ec-play').textContent = 'Réécouter'; });
+});
+$('#ec-audio').addEventListener('ended', ecPlayReset);
+$('#ec-redo').addEventListener('click', async () => {
+  const e = ECs; if (!e || e.phase !== 'stopped' || e.finishing) return;
+  ecPlayReset();
+  e.takes[e.idx] = null; e.retakes[e.idx]++; e.msg = null; e.hint = 'Prise supprimée. Touchez « Enregistrer » pour la refaire.';
+  ecPhase('ready');
+  try { ecKept(await ecSave(e)); } catch (err) { /* rien */ }   // la prise rejetée ne reste pas dans les fichiers
+});
+$('#ec-next').addEventListener('click', () => {
+  const e = ECs; if (!e || e.phase !== 'stopped' || e.finishing) return;
+  if (e.idx >= ecList(e.series).length - 1) { ecFinish(); return; }
+  e.idx++; e.hint = null; ecShow();
+});
+$('#ec-end').addEventListener('click', () => {
+  const e = ECs; if (!e || e.finishing || e.starting || e.phase === 'recording' || e.phase === 'stopping') return;
+  const n = ecCount(e), N = ecList(e.series).length;
+  $('#ec-endtext').textContent = n ? 'Arrêter ici ? ' + plural(n, 'prise enregistrée', 'prises enregistrées') + ' sur ' + N + (n > 1 ? ' sont gardées.' : ' est gardée.') +
+    ' Vous pourrez reprendre plus tard (« Reprendre ' + e.name + ' »).' : 'Arrêter ici ? Aucune prise n\'est enregistrée : rien ne sera gardé.';
+  $('#ec-endconfirm').hidden = false;
+  try { $('#ec-endconfirm').scrollIntoView({block: 'nearest'}); } catch (err) { /* facultatif */ }
+});
+$('#ec-endno').addEventListener('click', () => { $('#ec-endconfirm').hidden = true; });
+$('#ec-endyes').addEventListener('click', () => ecFinish());
+let ecLast = null;
+async function ecFinish() {
+  const e = ECs; if (!e || e.finishing || e.starting || e.phase === 'recording' || e.phase === 'stopping') return;
+  e.finishing = true; ecPlayReset(); $('#ec-endconfirm').hidden = true;
+  for (const s of ['#ec-next', '#ec-play', '#ec-redo', '#ec-end']) $(s).disabled = true;
+  const complete = ecCount(e) === ecList(e.series).length;
+  const why = complete ? 'fin de la liste' : 'arrêté avant la fin de la liste';
+  let res = {ok: false, rec: null, blob: null};
+  try { res = await ecQueue(e, () => ecWrite(e, complete, why)); } catch (err) { /* le texte final le dit */ }
+  ECs = null;
+  ecDoneRender(e, res, complete);
+}
+function ecDoneRender(e, res, complete) {
+  const n = ecCount(e), N = ecList(e.series).length, box = $('#ec-done-warn'); box.innerHTML = '';
+  ecLast = res.rec ? {rec: res.rec, blob: res.blob} : null;
+  if (!res.rec) {
+    $('#ec-done-text').textContent = 'Aucune prise enregistrée : rien n\'a été gardé.';
+  } else {
+    const redone = e.retakes.reduce((a, b) => a + b, 0);
+    $('#ec-done-text').textContent = res.rec.name + '.wav : ' + plural(n, 'prise enregistrée', 'prises enregistrées') + ' sur ' + N + ' (' + fmtDur(res.rec.duration_s) +
+      ' avec les silences), ' + plural(redone, 'prise refaite', 'prises refaites') + '.' + (res.ok ? ' Gardé sur le téléphone.' : '');
+    if (!res.ok) box.append(notSavedBox(res.rec.name));
+    if (!complete) {
+      box.append(h('div', {class: 'banner warn', 'data-act': 'incomplete'}, h('b', {}, 'Série incomplète : '), plural(n, 'prise enregistrée', 'prises enregistrées') + ' sur ' + N +
+        '. Pour la continuer : Énoncés courts › « Reprendre ' + res.rec.name + ' ». Envoyez-la quand elle est complète.'));
+    }
+    const quiet = JSON.parse(res.rec.json).takes.filter((t) => t.peak_dbfs === null || t.peak_dbfs < -60).map((t) => t.id);
+    if (quiet.length) box.append(h('div', {class: 'banner warn'}, 'Presque aucun son sur ' + quiet.join(', ') + ' : vérifiez le micro.'));
+  }
+  $('#ec-send').hidden = !ecLast; $('#ec-send-out').innerHTML = '';
+  go('ecdone', 'replace');
+}
+$('#ec-send').addEventListener('click', (ev) => { if (ecLast) guarded(ev.currentTarget, () => sendFiles(filesOf(ecLast.rec, ecLast.blob), $('#ec-send-out'), null)); });
+$('#ec-again').addEventListener('click', () => go('ec'));
+$('#ec-tolist').addEventListener('click', () => go('list'));
+
+// Cadre de la cible : sa hauteur ne dépend que de l'écran (mesurée avec la phase la plus haute : « Suivant », « Réécouter / Refaire »,
+// « Arrêter ici »), jamais de la prise ni de la phase : le bouton principal reste au même endroit. La cible rétrécit pour tenir.
+function ecFit() {
+  if (state.screen !== 'ecrun') return 0;
+  const box = $('#ec-box'), el = $('#ec-word'); if (!el.textContent) return 0;
+  const parts = ['#ec-ready', '#ec-recording', '#ec-stopped', '#ec-end'].map((s) => $(s)), keep = parts.map((x) => x.hidden);
+  parts[0].hidden = true; parts[1].hidden = true; parts[2].hidden = false; parts[3].hidden = false;
+  box.style.height = EC_BOX_MAX + 'px';
+  let b = 0; for (const x of document.querySelectorAll('#ec-stopped button, #ec-end')) { const r = x.getBoundingClientRect(); if (r.height && r.bottom > b) b = r.bottom; }
+  const over = b + window.scrollY - (window.innerHeight - 4);
+  const hgt = over > 0 ? Math.max(EC_BOX_MIN, Math.floor(EC_BOX_MAX - over)) : EC_BOX_MAX;
+  box.style.height = hgt + 'px';
+  parts.forEach((x, i) => { x.hidden = keep[i]; });
+  const cont = el.classList.contains('cont');
+  let size = cont ? Math.min(30, Math.floor(hgt / 4 / 1.22)) : Math.min(64, Math.max(36, Math.floor(window.innerWidth / 6)));
+  el.style.fontSize = size + 'px';
+  while (size > 12 && (el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().height > box.clientHeight + 1)) { size -= 1; el.style.fontSize = size + 'px'; }
+  ecInfoFit();
+  return size;
+}
+
 // ------------------------------------------------------------------------------------------------ Mes enregistrements
 let refTimers = {};
 async function renderList() {
@@ -1577,11 +1990,12 @@ async function renderList() {
   $('#list-out').innerHTML = '';
   listSendAllLabel();
   const box = $('#list-items'); box.innerHTML = '';
-  const ne = recs.filter((r) => r.kind === 'NE'), w1 = recs.filter((r) => r.kind === 'W1'), mi = recs.filter((r) => r.kind === 'MI');
+  const ne = recs.filter((r) => r.kind === 'NE'), w1 = recs.filter((r) => r.kind === 'W1'), mi = recs.filter((r) => r.kind === 'MI'), ec = recs.filter((r) => r.kind === 'EC');
   if (!recs.length) box.append(h('p', {class: 'hint'}, 'Aucun enregistrement pour l\'instant.'));
   if (ne.length) { box.append(h('h3', {}, 'Jeu neuf (NE)')); ne.forEach((r) => box.append(itemCard(r))); }
   if (w1.length) { box.append(h('h3', {}, 'Liste à lire (W1)')); w1.forEach((r) => box.append(itemCard(r))); }
   if (mi.length) { box.append(h('h3', {}, 'Mots isolés (MI)')); mi.forEach((r) => box.append(itemCard(r))); }
+  if (ec.length) { box.append(h('h3', {}, 'Énoncés courts (EC)')); ec.forEach((r) => box.append(itemCard(r))); }
 }
 function allUnsentFiles() {
   const out = [];
@@ -1630,7 +2044,8 @@ function itemCard(r) {
   const card = h('article', {class: 'item', 'data-name': r.name});
   const meta = [fmtDur(r.duration_s || 0), fmtDate(r.created), fmtSize(r.bytes || 0)];
   if (r.kind === 'MI') meta.push(r.n_takes + ' mot' + (r.n_takes > 1 ? 's' : ''));
-  if ((r.kind === 'W1' || r.kind === 'MI') && r.complete === false) meta.push('incomplet');
+  if (r.kind === 'EC') meta.push(r.n_takes + ' prise' + (r.n_takes > 1 ? 's' : '') + ' sur ' + (r.n_planned || '?'));
+  if ((r.kind === 'W1' || r.kind === 'MI' || r.kind === 'EC') && r.complete === false) meta.push('incomplet');
   if (r.interrupted) meta.push('récupéré après interruption');
   if (r.memOnly) meta.push('PAS gardé sur le téléphone');
   card.append(h('div', {class: 'hd'}, h('span', {class: 'nm'}, r.name), badge(r)), h('div', {class: 'meta'}, meta.join(' · ')));
@@ -1747,13 +2162,14 @@ $('#recover-see').addEventListener('click', () => { $('#recover').hidden = true;
 
 // ------------------------------------------------------------------------------------------------ démarrage
 window.RadRec = {PAGE_VERSION, Resampler, wavHeader, toInt16, store, PH, fitSentence, w1Fit, T, state: () => state, cur: () => cur,
-                 MI_ITEMS, fitWord, miFit, mi: () => MIs};
+                 MI_ITEMS, fitWord, miFit, mi: () => MIs, EC, ecFit, ec: () => ECs};
 (async function boot() {
   try { history.replaceState({s: 'home'}, ''); } catch (e) { /* facultatif */ }
   await store.open();
   storageBanner();
   await loadRecs();
   if (!PH) $('#go-w1').append(h('small', {}, '(liste absente de la page)'));
+  if (!EC) $('#go-ec').append(h('small', {}, '(listes absentes de la page)'));
   show('home');
   document.body.dataset.ready = '1';
 })();
